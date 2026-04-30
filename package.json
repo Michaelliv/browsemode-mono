@@ -1,0 +1,16 @@
+{
+  "name": "browsemode-mono",
+  "private": true,
+  "workspaces": ["packages/*"],
+  "scripts": {
+    "test": "bun test packages/",
+    "typecheck": "bun run --filter '*' typecheck",
+    "lint": "biome check packages/",
+    "lint:fix": "biome check --write packages/"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.4.9",
+    "@types/bun": "latest",
+    "typescript": "^5.8.0"
+  }
+}

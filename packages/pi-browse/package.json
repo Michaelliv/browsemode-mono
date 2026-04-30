@@ -1,0 +1,35 @@
+{
+  "name": "pi-browse",
+  "version": "0.0.1",
+  "description": "Pi extension that drives a real browser via browsemode — page-as-API, code mode, multi-tab, cookie sync.",
+  "keywords": [
+    "pi-package"
+  ],
+  "type": "module",
+  "license": "MIT",
+  "author": "michaelliv",
+  "pi": {
+    "extensions": [
+      ".pi/extensions/browse"
+    ]
+  },
+  "scripts": {
+    "test": "bun test test/",
+    "typecheck": "bunx tsc --noEmit"
+  },
+  "peerDependencies": {
+    "@mariozechner/pi-coding-agent": "*",
+    "@mariozechner/pi-tui": "*",
+    "@sinclair/typebox": "*"
+  },
+  "dependencies": {
+    "browsemode": "workspace:*"
+  },
+  "devDependencies": {
+    "@mariozechner/pi-coding-agent": "^0.70.6",
+    "@sinclair/typebox": "^0.34.0"
+  },
+  "bundledDependencies": [
+    "browsemode"
+  ]
+}

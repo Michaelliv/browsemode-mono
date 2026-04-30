@@ -1,0 +1,30 @@
+{
+  "name": "browsemode",
+  "version": "0.0.1",
+  "description": "Code mode for the web. The page becomes a typed JS surface; agents drive it from a QuickJS sandbox over CDP.",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "files": ["src"],
+  "bin": {
+    "browsemode": "./src/cli/main.ts"
+  },
+  "exports": {
+    ".": "./src/index.ts",
+    "./cookies": "./src/browser/cookies.ts",
+    "./chrome": "./src/browser/chrome.ts",
+    "./markdown": "./src/page/markdown.ts"
+  },
+  "scripts": {
+    "test": "bun test test/",
+    "typecheck": "bunx tsc --noEmit",
+    "dev": "bun run src/cli/main.ts"
+  },
+  "dependencies": {
+    "chalk": "^5.6.2",
+    "commander": "^14.0.3",
+    "markit-ai": "^0.5.3",
+    "quickjs-emscripten": "^0.31.0"
+  },
+  "license": "MIT"
+}

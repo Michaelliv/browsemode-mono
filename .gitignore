@@ -1,0 +1,36 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+*.tsbuildinfo
+
+# Compiled binaries (only at repo root, not the package dir of the same name)
+/browsemode
+/browsemode-*
+
+# Logs
+*.log
+
+# dotenv
+.env
+.env.local
+.env.*.local
+
+# OS noise
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*~
+
+# Local-only — research notes, scratch pads
+research-oss-browser-agents.md
+*.scratch
+.scratch/
+
+# Local browsemode caches that might end up in cwd
+.cache/
