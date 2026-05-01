@@ -35,6 +35,8 @@ export type {
 } from "./orchestration/fallback.js";
 export { openWithFallback } from "./orchestration/fallback.js";
 export type { PersistedBrowser } from "./orchestration/persistence.js";
+export type { Watchdog, WatchdogFactory } from "./orchestration/watchdogs/base.js";
+export { PopupsWatchdog } from "./orchestration/watchdogs/popups.js";
 export {
   clearBrowser,
   listBrowsers,
@@ -156,6 +158,7 @@ export const Browsemode = {
       _port: snapshot.port,
       _pages: new Map<string, Page>(),
       _activeTargetId: null as string | null,
+      _watchdogDetachers: [] as Array<() => void>,
     }) as Browser;
 
     for (const tab of snapshot.tabs) {
@@ -183,6 +186,27 @@ export const Browsemode = {
     (b as any)._activeTargetId = (b as any)._pages.has(snapshot.activeTargetId)
       ? snapshot.activeTargetId
       : (b as any)._pages.keys().next().value;
+
+    // Install default watchdogs against the restored Browser. Each
+    // watchdog walks the existing pages map at attach time so popups
+    // (etc) work on tabs that pre-existed before this restore.
+    const { PopupsWatchdog: PW } = await import(
+      "./orchestration/watchdogs/popups.js"
+    );
+    const watchdogs = [new PW()];
+    for (const wd of watchdogs) {
+      try {
+        const detach = await wd.attach(b);
+        (b as any)._watchdogDetachers.push(detach);
+        b.bus.emit({ kind: "watchdog.attached", name: wd.name });
+      } catch (e: any) {
+        b.bus.emit({
+          kind: "watchdog.error",
+          name: wd.name,
+          reason: `attach failed: ${e?.message ?? e}`,
+        });
+      }
+    }
 
     b.bus.emit({ kind: "session.restored", path: getConfig().cacheDir });
     return b;

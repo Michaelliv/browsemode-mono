@@ -20,7 +20,21 @@ export type BusEvent =
   | { kind: "fallback.triggered"; from: string; to: string; reasons: string[] }
   | { kind: "fallback.failed"; reasons: string[] }
   | { kind: "session.persisted"; path: string }
-  | { kind: "session.restored"; path: string };
+  | { kind: "session.restored"; path: string }
+  // Lifecycle hooks for watchdogs
+  | { kind: "page.created"; targetId: string; sessionId: string }
+  | { kind: "page.closed"; targetId: string }
+  // Watchdog observations
+  | {
+      kind: "dialog.handled";
+      targetId: string;
+      type: "alert" | "confirm" | "prompt" | "beforeunload";
+      message: string;
+      accepted: boolean;
+    }
+  | { kind: "watchdog.attached"; name: string }
+  | { kind: "watchdog.detached"; name: string }
+  | { kind: "watchdog.error"; name: string; reason: string };
 
 export type BusEventKind = BusEvent["kind"];
 export type BusListener<K extends BusEventKind = BusEventKind> = (

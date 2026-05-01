@@ -27,6 +27,8 @@ import {
   pathForBrowser,
   saveBrowser,
 } from "../orchestration/persistence.js";
+import type { Watchdog } from "../orchestration/watchdogs/base.js";
+import { PopupsWatchdog } from "../orchestration/watchdogs/popups.js";
 import type { MarkdownSection } from "../page/markdown.js";
 import { Page } from "../page/page.js";
 import { SHIM_SCRIPT } from "../page/shim.js";
@@ -68,6 +70,23 @@ export interface BrowserOpts {
   settleMs?: number;
   /** Event bus. If omitted, a fresh silent bus is created. */
   bus?: Bus;
+  /**
+   * Watchdogs to install. If omitted, the default set is used
+   * (currently: popups). Pass `[]` to disable all watchdogs. Pass
+   * your own list to opt into specific ones only.
+   */
+  watchdogs?: Watchdog[];
+}
+
+/**
+ * The default set every Browser gets unless overridden via
+ * BrowserOpts.watchdogs. New watchdogs land here as they're
+ * implemented (permissions, downloads, crash, ...). Each is a
+ * factory so instances are per-Browser, never shared across
+ * Browsers.
+ */
+function defaultWatchdogs(): Watchdog[] {
+  return [new PopupsWatchdog()];
 }
 
 export interface NewPageOpts {
@@ -100,6 +119,7 @@ export class Browser {
 
   private _pages = new Map<string, Page>();
   private _activeTargetId: string | null = null;
+  private _watchdogDetachers: Array<() => void> = [];
 
   private constructor() {}
 
@@ -146,7 +166,36 @@ export class Browser {
     b._browserWsUrl =
       version.webSocketDebuggerUrl ?? `ws://${host}:${port}/devtools/browser`;
     b.cdp = await CDP.connect(b._browserWsUrl);
+
+    // Install watchdogs after CDP is up but before any page exists,
+    // so the page.created emission for the first newPage() reaches them.
+    const watchdogs = opts.watchdogs ?? defaultWatchdogs();
+    for (const wd of watchdogs) {
+      try {
+        const detach = await wd.attach(b);
+        b._watchdogDetachers.push(detach);
+        b.bus.emit({ kind: "watchdog.attached", name: wd.name });
+      } catch (e: any) {
+        b.bus.emit({
+          kind: "watchdog.error",
+          name: wd.name,
+          reason: `attach failed: ${e?.message ?? e}`,
+        });
+      }
+    }
     return b;
+  }
+
+  /** Tear down every installed watchdog. Idempotent. */
+  private detachWatchdogs(): void {
+    while (this._watchdogDetachers.length) {
+      const fn = this._watchdogDetachers.pop()!;
+      try {
+        fn();
+      } catch {
+        // Per-watchdog detach errors don't block the rest.
+      }
+    }
   }
 
   static async launch(opts: BrowserOpts = {}): Promise<Browser> {
@@ -211,6 +260,14 @@ export class Browser {
     });
     this._pages.set(targetId, page);
     this._activeTargetId = targetId;
+    // Watchdogs subscribe to this to attach per-page CDP listeners.
+    // Fire AFTER the page is registered so a watchdog handler that
+    // looks up the page by targetId finds it.
+    this.bus.emit({
+      kind: "page.created",
+      targetId,
+      sessionId: session.id,
+    });
 
     if (opts.url && opts.url !== "about:blank") {
       await page.dispatch("goto", {
@@ -261,6 +318,7 @@ export class Browser {
       const next = this._pages.keys().next().value;
       this._activeTargetId = next ?? null;
     }
+    this.bus.emit({ kind: "page.closed", targetId });
   }
 
   // ── persistence ───────────────────────────────────
@@ -295,6 +353,7 @@ export class Browser {
    */
   async detach(): Promise<void> {
     this.snapshot();
+    this.detachWatchdogs();
     this.cdp.close();
     this._pages.clear();
     this._activeTargetId = null;
@@ -312,6 +371,7 @@ export class Browser {
     }
     this._pages.clear();
     this._activeTargetId = null;
+    this.detachWatchdogs();
     this.cdp.close();
     clearBrowser(this.id);
   }
