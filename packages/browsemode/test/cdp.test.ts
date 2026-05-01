@@ -82,6 +82,20 @@ describe("CDP", () => {
     expect(Date.now() - start).toBeLessThan(500);
   });
 
+  it("timeout error names the method and the actionable failure mode", async () => {
+    // Pattern #1 from browser-use: a silent-WebSocket hang is the most
+    // common reason a CDP method never resolves. The error text has to
+    // surface that so callers stop guessing.
+    const cdp = await CDP.connect("ws://test/x");
+    const e = (await cdp
+      .send("Page.captureScreenshot", {}, undefined, { timeoutMs: 5 })
+      .catch((err) => err)) as Error;
+    expect(e.message).toContain("Page.captureScreenshot");
+    expect(e.message).toContain("5ms");
+    expect(e.message).toContain("browser may be unresponsive");
+    expect(e.message).toMatch(/silent WebSocket|dead container|stuck script/);
+  });
+
   it("opts.timeoutMs overrides the default", async () => {
     const cdp = await CDP.connect("ws://test/x");
     cdp.defaultTimeoutMs = 10_000;

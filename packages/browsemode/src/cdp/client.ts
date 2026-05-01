@@ -89,7 +89,18 @@ export class CDP {
         timer = setTimeout(() => {
           if (this.pending.has(id)) {
             this.pending.delete(id);
-            reject(new Error(`CDP ${method} timed out after ${timeoutMs}ms`));
+            // Match browser-use's failure-mode hint: the most common
+            // cause of a CDP method never responding is a silent
+            // WebSocket — TCP/keepalive alive, browser process dead
+            // or proxy lost upstream. Surfacing this in the error
+            // text turns a hang into an actionable diagnosis.
+            reject(
+              new Error(
+                `CDP ${method} timed out after ${timeoutMs}ms ` +
+                  `(browser may be unresponsive: silent WebSocket, ` +
+                  `dead container, or stuck script)`,
+              ),
+            );
           }
         }, timeoutMs);
       }

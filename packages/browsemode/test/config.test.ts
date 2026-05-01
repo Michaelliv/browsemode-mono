@@ -103,6 +103,32 @@ describe("env vars override defaults", () => {
     resetConfig();
     expect(getConfig().chrome.port).toBe(9335);
   });
+
+  it("timeout envs reject 0 / negative / NaN as a footgun guard", () => {
+    // Pattern #1: a value of 0 in CDP send() means "no timeout" which
+    // silently wedges the agent on a dead-but-TCP-alive WebSocket.
+    // Mirror browser-use's _coerce_valid_timeout: anything not a
+    // finite positive integer falls back to the default.
+    const origWrite = process.stderr.write;
+    const warnings: string[] = [];
+    (process.stderr.write as any) = (chunk: any) => {
+      warnings.push(String(chunk));
+      return true;
+    };
+    try {
+      for (const bad of ["0", "-1", "NaN", "abc"]) {
+        process.env.BROWSEMODE_CDP_TIMEOUT_MS = bad;
+        resetConfig();
+        expect(getConfig().defaults.cdpTimeoutMs).toBe(30_000);
+      }
+      // At least one warning was emitted naming the env var + bad value.
+      expect(warnings.some((w) => w.includes("BROWSEMODE_CDP_TIMEOUT_MS"))).toBe(
+        true,
+      );
+    } finally {
+      (process.stderr.write as any) = origWrite;
+    }
+  });
 });
 
 describe("configure() overrides everything", () => {

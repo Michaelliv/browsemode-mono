@@ -83,6 +83,24 @@ function envInt(name: string, fallback: number): number {
   return Number.isFinite(n) ? n : fallback;
 }
 
+/**
+ * Like envInt, but for fields where 0 / negative / NaN would be a
+ * footgun. Used for every timeout knob: a value of 0 in send() means
+ * "no timeout" which silently wedges the agent on a dead-but-TCP-alive
+ * WebSocket. Mirrors browser-use's _coerce_valid_timeout: bad value =
+ * fall back to default + warn once on stderr.
+ */
+function envPositiveInt(name: string, fallback: number): number {
+  const v = process.env[name];
+  if (!v) return fallback;
+  const n = Number.parseInt(v, 10);
+  if (Number.isFinite(n) && n > 0) return n;
+  process.stderr.write(
+    `[browsemode] ${name}=${JSON.stringify(v)} is not a positive integer; using ${fallback}\n`,
+  );
+  return fallback;
+}
+
 function envBool(name: string): boolean | undefined {
   const v = process.env[name];
   if (v === undefined) return undefined;
@@ -118,15 +136,15 @@ function fromEnv(): BrowsemodeConfig {
       port: envInt("BROWSEMODE_CHROME_PORT", 9335),
       extraArgs: envCsv("BROWSEMODE_CHROME_ARGS"),
       profileDir: process.env.BROWSEMODE_CHROME_PROFILE_DIR,
-      spawnTimeoutMs: envInt("BROWSEMODE_CHROME_SPAWN_TIMEOUT_MS", 10_000),
+      spawnTimeoutMs: envPositiveInt("BROWSEMODE_CHROME_SPAWN_TIMEOUT_MS", 10_000),
     },
     defaults: {
       settleMs: envInt("BROWSEMODE_SETTLE_MS", 250),
-      cdpTimeoutMs: envInt("BROWSEMODE_CDP_TIMEOUT_MS", 30_000),
-      probeTimeoutMs: envInt("BROWSEMODE_PROBE_TIMEOUT_MS", 5_000),
-      navTimeoutMs: envInt("BROWSEMODE_NAV_TIMEOUT_MS", 30_000),
-      waitForTimeoutMs: envInt("BROWSEMODE_WAIT_FOR_TIMEOUT_MS", 15_000),
-      execTimeoutMs: envInt("BROWSEMODE_EXEC_TIMEOUT_MS", 60_000),
+      cdpTimeoutMs: envPositiveInt("BROWSEMODE_CDP_TIMEOUT_MS", 30_000),
+      probeTimeoutMs: envPositiveInt("BROWSEMODE_PROBE_TIMEOUT_MS", 5_000),
+      navTimeoutMs: envPositiveInt("BROWSEMODE_NAV_TIMEOUT_MS", 30_000),
+      waitForTimeoutMs: envPositiveInt("BROWSEMODE_WAIT_FOR_TIMEOUT_MS", 15_000),
+      execTimeoutMs: envPositiveInt("BROWSEMODE_EXEC_TIMEOUT_MS", 60_000),
       execMemoryBytes: envInt("BROWSEMODE_EXEC_MEMORY_BYTES", 64 * 1024 * 1024),
       userAgent:
         process.env.BROWSEMODE_USER_AGENT ??
