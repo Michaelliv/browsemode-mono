@@ -160,10 +160,16 @@ export default function (pi: ExtensionAPI) {
         };
       }
 
+      // ExecuteResult uses `.result` (the IIFE return value); `.value`
+      // would be undefined and silently coerce to the string "undefined"
+      // here, masking every successful exec as an empty result.
+      const returned = result.result;
       const value =
-        typeof result.value === "string"
-          ? result.value
-          : JSON.stringify(result.value, null, 2);
+        typeof returned === "string"
+          ? returned
+          : returned === undefined
+            ? "(no return value)"
+            : JSON.stringify(returned, null, 2);
 
       return {
         content: [{ type: "text", text: value + logs }],

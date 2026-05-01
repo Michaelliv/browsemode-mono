@@ -170,16 +170,15 @@ class PiRunner implements Runner {
 
 function buildTaskPrompt(ctx: RunnerContext): string {
   const lines = [
-    "You're being evaluated on a real browser task. Use the `execute_browsemode` tool to drive the browser.",
+    "You're being evaluated on a real browser task. Use the `execute_browsemode` tool to drive the browser. The browser starts at about:blank.",
     "",
     "Task:",
     ctx.task.task,
     "",
   ];
   if (ctx.task.url) {
-    lines.push(`Starting URL: ${ctx.task.url}`);
     lines.push(
-      "(The orchestrator has already navigated to that URL for you. Call `await page.scan()` first if you need a fresh element catalog.)",
+      `Start by navigating to ${ctx.task.url} (the browser is currently on about:blank).`,
     );
     lines.push("");
   }
