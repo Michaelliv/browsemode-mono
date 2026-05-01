@@ -79,6 +79,8 @@ const b = await Browsemode.restore("research");  // later, in another process
 
 **Auto-fallback when the primary wedges.** Configure obscura as the primary and Chrome as the fallback. If the primary fails to settle within the timeout, browsemode spawns the managed Chrome and retries. The whole flow runs on either backend without code changes.
 
+**Tiny footprint by default.** browsemode's recommended primary is [obscura](https://github.com/h4ckf0r0day/obscura), a Rust headless browser that speaks CDP. ~30 MB RAM per session vs Chrome's 200+ MB, ~70 MB single binary vs Chrome's 300+ MB install, ~85 ms page loads vs ~500 ms, and instant cold start vs Chrome's ~2 seconds. For a Docker image: copy one binary, no apt-get install of Chromium and its X11/font dependencies, no `--no-sandbox` ritual. Chrome stays as the fallback for the small set of pages obscura can't handle yet.
+
 **No screenshots, no vision models.** Pages convert to markdown via [markit](https://github.com/Michaelliv/markit) when the agent needs to read content. This is fast, deterministic, and costs near zero tokens compared to image input.
 
 **Iframe support.** OOPIFs are auto-discovered and attached on every scan. Elements inside iframes appear in the same flat catalog, addressable by the same names.
@@ -124,7 +126,10 @@ ENV BROWSEMODE_DEFAULT_BROWSER_ID=container-1
 | Element addressing | named (`page.signInButton`) | numeric index (`click 0`) | natural language (`act("click sign in")`) | accessibility refs (`ref=e3`) |
 | Reasoning per task | one script | many tool calls | many primitives | many tool calls |
 | Driver | direct CDP | direct CDP | Playwright | Playwright |
-| Fallback browser | obscura, Chrome, Brave, Edge, Arc | Chromium | Chromium / cloud | Chromium / Firefox / WebKit |
+| Default browser | obscura (Rust, 30 MB RAM) | Chromium (200+ MB RAM) | Chromium (200+ MB RAM) | Chromium (200+ MB RAM) |
+| Docker image cost | ~70 MB binary, no Chrome | full Chromium install | full Chromium install | full Chromium install |
+| Cold start | instant | ~2 s | ~2 s | ~2 s |
+| Fallback browser | Chrome, Brave, Edge, Arc | Chromium | Chromium / cloud | Chromium / Firefox / WebKit |
 | Vision | markdown via markit | screenshots | optional | accessibility snapshots |
 | Sandbox | QuickJS | none | none | none |
 | Persistence | id-keyed snapshots | session dir | profile dir | profile dir |
