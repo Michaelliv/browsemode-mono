@@ -77,21 +77,22 @@ await a.detach();                                // keep the live browser, save 
 const b = await Browsemode.restore("research");  // later, in another process
 ```
 
-**Auto-fallback when the primary wedges.** Configure obscura as the primary and Chrome as the fallback. If the primary fails to settle within the timeout, browsemode spawns the managed Chrome and retries. The whole flow runs on either backend without code changes.
+**Two backends, one API.** [obscura](https://github.com/h4ckf0r0day/obscura) (Rust, 30 MB / instant) is the default primary. Chrome is the auto fallback when a flow hits something obscura doesn't implement yet. Same `Browser` class either way, calling code never branches.
 
-**Tiny footprint by default.** browsemode's recommended primary is [obscura](https://github.com/h4ckf0r0day/obscura), a Rust headless browser that speaks CDP. ~30 MB RAM per session vs Chrome's 200+ MB, ~70 MB single binary vs Chrome's 300+ MB install, ~85 ms page loads vs ~500 ms, and instant cold start vs Chrome's ~2 seconds. For a Docker image: copy one binary, no apt-get install of Chromium and its X11/font dependencies, no `--no-sandbox` ritual.
+|  | obscura v0.1.x | Chrome (fallback) |
+|---|---|---|
+| Footprint | 30 MB RAM, 70 MB binary | 200+ MB RAM, 300+ MB install |
+| Cold start | instant | ~2 s |
+| Navigate, scan, fill, type, eval, markdown, cookies, JS-click | yes | yes |
+| Layout-aware click, dialogs, downloads, screenshots, request interception | no (auto-falls back) | yes |
 
-**Scope today.** obscura is v0.1.x, a young project (first release April 2026) actively filling out CDP coverage. browsemode is tested against it and degrades cleanly on the gaps. Out of the verbs we ship, on obscura you get the fast path for navigation, scan, fill, type, eval, markdown extraction, cookie injection, and JS-level click. You fall back to Chrome (auto, transparent) for clicks that need real layout coordinates, JavaScript dialogs (`alert` / `confirm` / `prompt`), browser-managed downloads, request interception via `Fetch.*`, screenshots, and any flow that requires a working `elementFromPoint` or `Page.getLayoutMetrics`. The fallback Browser instance is the same `Browser` class with a different backend, so calling code never branches on this. As obscura merges its [open CDP PRs](https://github.com/h4ckf0r0day/obscura/pulls) more flows shift to the obscura path automatically.
+The obscura column expands as obscura merges its [open CDP PRs](https://github.com/h4ckf0r0day/obscura/pulls); no browsemode changes needed.
 
-**Same one binary in Docker either way.** Even when you need Chrome fallback, the *primary* doesn't have to ship Chromium in the image. A pure-obscura image is ~70 MB and handles a real majority of read-heavy workloads. Add Chrome only when you know your flow needs it, or run two services and let the orchestrator pick.
+**Vision via markdown, not screenshots.** Pages render through [markit](https://github.com/Michaelliv/markit) when the agent needs to read content. Deterministic, cheap, no image tokens.
 
-**No screenshots, no vision models.** Pages convert to markdown via [markit](https://github.com/Michaelliv/markit) when the agent needs to read content. This is fast, deterministic, and costs near zero tokens compared to image input.
+**Iframe-aware scans.** Cross-origin iframes are auto-attached; their elements appear in the same flat catalog with the same names.
 
-**Iframe support.** OOPIFs are auto-discovered and attached on every scan. Elements inside iframes appear in the same flat catalog, addressable by the same names.
-
-**Cookie sync.** Read your real Chrome's cookies (SQLite + macOS Keychain) and inject them into a browsemode-managed browser. Useful for quickly priming a session without scripted login.
-
-**One script, one reasoning step.** The QuickJS sandbox lets an agent write five actions, three waits, and a return value as one body. Compare to MCP-style tools where each click is a separate model round trip.
+**Real Chrome cookie sync.** Read your local Chrome's cookies (SQLite + macOS Keychain) and inject them into a browsemode-managed browser to skip scripted login.
 
 ## Configuration
 
