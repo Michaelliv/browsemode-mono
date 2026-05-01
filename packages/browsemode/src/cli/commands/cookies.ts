@@ -30,7 +30,7 @@ export async function cookiesDump(flags: CookiesDumpOpts): Promise<void> {
 
   let cookies: ChromeCookie[];
   try {
-    cookies = readChromeCookies({
+    cookies = await readChromeCookies({
       domain: flags.domain,
       profile: flags.profile,
     });

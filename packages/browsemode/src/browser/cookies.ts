@@ -12,7 +12,11 @@
 //     the plaintext before encryption. Older cookies don't have it; we
 //     detect the prefix heuristically and strip.
 
-import { Database } from "bun:sqlite";
+// `Database` is loaded lazily inside readChromeCookies so the
+// module is importable from non-bun runtimes (notably pi loaded
+// via node + jiti for the pi-browsemode extension). Top-level
+// `import "bun:sqlite"` would fail at extension load time even
+// though the cookies code path never runs there.
 import { execFileSync } from "node:child_process";
 import { createDecipheriv, createHash, pbkdf2Sync } from "node:crypto";
 import {
@@ -178,7 +182,9 @@ function decrypt(encrypted: Buffer, key: Buffer): string {
   return plain.toString("utf-8");
 }
 
-export function readChromeCookies(opts: ReadCookiesOpts = {}): ChromeCookie[] {
+export async function readChromeCookies(
+  opts: ReadCookiesOpts = {},
+): Promise<ChromeCookie[]> {
   const profile = opts.profile ?? "Default";
   const userDir = opts.userDataDir ?? defaultUserDataDir();
 
@@ -224,6 +230,18 @@ export function readChromeCookies(opts: ReadCookiesOpts = {}): ChromeCookie[] {
   const password = getKeychainPassword();
   const key = deriveKey(password);
 
+  // Lazy-import bun:sqlite so this module can be evaluated under
+  // node (for example pi loading the pi-browsemode extension via
+  // jiti). If we're actually inside readChromeCookies on node, we
+  // give a clear error instead of an opaque module-not-found.
+  let Database: typeof import("bun:sqlite").Database;
+  try {
+    ({ Database } = await import("bun:sqlite"));
+  } catch {
+    throw new Error(
+      "readChromeCookies needs Bun's bun:sqlite. Run via `bun` or use the CLI shipped by browsemode.",
+    );
+  }
   const db = new Database(dbPath, { readonly: true });
   try {
     // Anchor matching to subdomain boundaries: `--domain x.com` should
