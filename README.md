@@ -153,7 +153,7 @@ packages/browsemode/    SDK + CLI (this is what most users want)
 packages/pi-browse/     pi extension wrapping the SDK as 6 agent tools
 ```
 
-The `pi-browse` package is consumed via `workspace:*` and exposes browsemode through the [pi](https://github.com/Anthropic/pi) extension protocol.
+`pi-browse` is a thin extension that wires the SDK into pi (the coding-agent system this monorepo lives next to) and exposes browsemode as a small set of tools the agent can call.
 
 ## Development
 
