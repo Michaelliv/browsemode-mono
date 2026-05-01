@@ -1,7 +1,7 @@
 {
-  "name": "pi-browse",
+  "name": "pi-browsemode",
   "version": "0.0.1",
-  "description": "Pi extension that drives a real browser via browsemode — page-as-API, code mode, multi-tab, cookie sync.",
+  "description": "pi extension that gives the agent one tool to drive a real browser via browsemode. Code mode for the web, in-sandbox element discovery, browser persists across tool calls.",
   "keywords": [
     "pi-package"
   ],
@@ -10,7 +10,7 @@
   "author": "michaelliv",
   "pi": {
     "extensions": [
-      ".pi/extensions/browse"
+      ".pi/extensions/browsemode"
     ]
   },
   "scripts": {

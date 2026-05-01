@@ -7,9 +7,9 @@ Project-level instructions for AI agents working in this repo.
 A monorepo with two packages:
 
 - **`packages/browsemode`** — TypeScript SDK + CLI. Drives a real browser (obscura, Chrome, Chromium, Brave, Edge, Arc) over CDP. The browser's interactable elements are scanned into a typed catalog so an agent can write `page.signInButton.click()` instead of guessing CSS selectors.
-- **`packages/pi-browse`** — Pi extension that exposes browsemode as a small set of tools.
+- **`packages/pi-browsemode`** — pi extension. Single tool (`execute_browsemode`), in-sandbox element discovery, browser persists across calls. Modeled on the runline pattern.
 
-Bun workspaces. `pi-browse` consumes `browsemode` via `workspace:*`.
+Bun workspaces. `pi-browsemode` consumes `browsemode` via `workspace:*`.
 
 ## Commands
 

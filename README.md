@@ -151,10 +151,10 @@ This is a Bun workspace monorepo:
 
 ```
 packages/browsemode/    SDK + CLI (this is what most users want)
-packages/pi-browse/     pi extension wrapping the SDK as 6 agent tools
+packages/pi-browsemode/ pi extension: one tool, in-sandbox element discovery
 ```
 
-`pi-browse` is a [pi](https://pi.dev) extension. It registers browsemode's verbs as tools the agent can call. Lives at `packages/pi-browse/.pi/extensions/browse/index.ts`, auto-discovered by pi when present in the project root.
+`pi-browsemode` is a [pi](https://pi.dev) extension. It registers a single tool, `execute_browsemode`, that runs JavaScript in browsemode's sandbox against a real browser. The browser persists across tool calls; element discovery (`page.list()`, `page.find(query)`, `page.describe(name)`) lives inside the sandbox, so the agent's system prompt stays small. Lives at `packages/pi-browsemode/.pi/extensions/browsemode/index.ts`.
 
 ## Development
 

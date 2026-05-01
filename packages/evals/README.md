@@ -68,7 +68,7 @@ bun run --filter browsemode-evals evals -- run --json                          #
 
 The default runner is `direct-sdk`. It needs no API key. It runs the YAML's `script` field via `Browser.exec` and feeds the return value to the judge. This is the smoke test, not a real eval. Benchmark tasks have no `script`, so running them through `direct-sdk` errors out (by design, until the LLM-driven runner lands).
 
-The real eval runner is `pi-extension` and is **not wired up yet**. The plan: spawn pi (`@mariozechner/pi-coding-agent`) in `--mode rpc` with a redone browse extension attached, send the task as a prompt, capture pi's final assistant message as the run artifact. The pi-browse package shipped earlier was a placeholder; we're reshaping the extension before committing this runner.
+The real eval runner is `pi-extension` and is **not wired up yet**. The plan: spawn pi (`@mariozechner/pi-coding-agent`) in `--mode rpc` with the `pi-browsemode` extension attached, send the task as a prompt, capture pi's final assistant message as the run artifact. The extension's single-tool surface (`execute_browsemode`) is in place; the runner that drives pi in RPC mode lands in a follow-up commit.
 
 ## External benchmarks
 

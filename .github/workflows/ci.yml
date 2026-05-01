@@ -20,8 +20,8 @@ jobs:
       - name: Typecheck (browsemode)
         working-directory: packages/browsemode
         run: bunx tsc --noEmit
-      - name: Typecheck (pi-browse)
-        working-directory: packages/pi-browse
+      - name: Typecheck (pi-browsemode)
+        working-directory: packages/pi-browsemode
         run: bunx tsc --noEmit
       - name: Lint
         run: bunx biome check packages/

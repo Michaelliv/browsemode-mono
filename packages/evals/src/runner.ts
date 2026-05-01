@@ -11,10 +11,9 @@
 //     This is what we'll actually score in real eval runs.
 //
 // The pi-extension runner is intentionally NOT wired up yet. The
-// existing pi-browse extension scaffold is going to be redone, so
-// committing to its current shape would be premature. The Runner
-// interface stays small enough that the pi runner is a one-file
-// add later.
+// pi-browsemode extension's tool surface is now settled
+// (single-tool, runline-style); the runner that spawns pi in RPC
+// mode and plumbs prompts/responses lands in a follow-up commit.
 
 import type { Browser } from "browsemode";
 import type { Backend, EvalTask, RunArtifact } from "./types.js";
