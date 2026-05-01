@@ -91,12 +91,13 @@ function toEvalTask(e: RawEntry): EvalTask {
     tags: ["webvoyager", e.web_name.toLowerCase()],
     budget: { maxSteps: 30, timeoutSec: 300 },
     judge: {
-      // The substring judge can't actually grade these well — every
-      // WebVoyager task has open-ended success criteria. We seed
-      // with a placeholder so the framework runs; expect every
-      // task to "fail" against the substring judge until the LLM
-      // judge lands. The artifact.output is what matters for replay.
-      must: ["__placeholder__"],
+      // WebVoyager tasks have open-ended success criteria; the
+      // canonical paper grades with GPT-4V-as-judge. We leave must
+      // empty so the pi judge falls into its task-description
+      // grading path. The substring judge will vacuously pass
+      // these (it has no idea what "successful" means without
+      // explicit criteria); use --judge pi to grade properly.
+      must: [],
     },
   };
 }

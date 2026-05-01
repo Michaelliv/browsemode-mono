@@ -23,7 +23,6 @@ describe("page verb registry", () => {
       "find",
       "describe",
       "collections",
-      "eval",
       "press",
       "viewport",
       "probe",

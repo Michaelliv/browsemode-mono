@@ -137,12 +137,12 @@ function toEvalTask(e: RawEntry): EvalTask {
     tags,
     budget: { maxSteps: 25, timeoutSec: 240 },
     judge: {
-      // Same caveat as WebVoyager: original scoring is per-step
-      // element-match. Until the LLM judge lands, the substring
-      // judge will under-grade these. The action_reprs gold
-      // trajectory is preserved on the meta side via the
-      // benchmark fixture for later trajectory matching.
-      must: ["__placeholder__"],
+      // Same caveat as WebVoyager: open-ended criteria, original
+      // scoring is per-step element-match. We leave must empty so
+      // the pi judge grades against the task description; the
+      // gold action_reprs trajectory could be wired into a
+      // benchmark-specific judge later.
+      must: [],
     },
   };
 }

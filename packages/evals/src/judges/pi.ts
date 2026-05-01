@@ -34,7 +34,15 @@ const SYSTEM_PROMPT_SUFFIX = [
   "outside the tool call: the tool call IS the answer.",
 ].join(" ");
 
-const JUDGE_TIMEOUT_MS = 60_000;
+// 180s budget for the whole judge subprocess. Anthropic's API
+// can take 30s+ on long contexts when rate-limited or retrying;
+// 60s used to be enough but bit us as soon as agent outputs got
+// longer (multi-paragraph WebVoyager answers). Override with
+// PI_JUDGE_TIMEOUT_MS.
+const JUDGE_TIMEOUT_MS = Number.parseInt(
+  process.env.PI_JUDGE_TIMEOUT_MS ?? "180000",
+  10,
+);
 
 /**
  * Factory used by PiJudge to construct its RPC transport. Default
@@ -147,10 +155,44 @@ function clamp01(n: number): number {
 }
 
 function buildJudgePrompt(task: EvalTask, artifact: RunArtifact): string {
-  const must =
-    (task.judge.must ?? []).map((s) => `- ${s}`).join("\n") || "(none)";
-  const mustNot =
-    (task.judge.must_not ?? []).map((s) => `- ${s}`).join("\n") || "(none)";
+  const mustList = task.judge.must ?? [];
+  const mustNotList = task.judge.must_not ?? [];
+  const hasExplicitCriteria = mustList.length > 0 || mustNotList.length > 0;
+
+  if (!hasExplicitCriteria) {
+    // Open-ended task (typical for WebVoyager / Mind2Web). Grade
+    // against whether the agent accomplished what the task
+    // describes. Binary scoring: original benchmarks pass/fail per
+    // task, so we mirror that. Partial credit is OK only when the
+    // agent did most of the work but missed something specific.
+    return [
+      "## Task",
+      task.task,
+      task.url ? `\nStarting URL: ${task.url}` : "",
+      "",
+      "## Agent output",
+      "```",
+      artifact.output || "(empty)",
+      "```",
+      "",
+      "## How to score",
+      "",
+      "This is an open-ended task with no explicit must/must_not criteria. Decide whether the agent's output accomplishes the task as a real human would have asked for it.",
+      "",
+      "- score = 1.0 if the output is a complete, correct answer to the task.",
+      "- score = 0.0 if the agent failed (empty output, wrong page, hallucinated, refused).",
+      "- score in (0, 1) only when the agent partially accomplished the task (e.g. found the right page but reported an incomplete or off-by-one answer).",
+      "",
+      "Bias toward binary 1.0 / 0.0 unless there's a clear partial-success story.",
+      "",
+      "`met_must`, `failed_must`, `hit_must_not` MUST be empty arrays \u2014 there are no explicit criteria for this task. Put your reasoning in `rationale`.",
+      "",
+      "Call the `judge` tool now with your verdict.",
+    ].join("\n");
+  }
+
+  const must = mustList.map((s) => `- ${s}`).join("\n") || "(none)";
+  const mustNot = mustNotList.map((s) => `- ${s}`).join("\n") || "(none)";
   return [
     "## Task",
     task.task,
@@ -168,8 +210,11 @@ function buildJudgePrompt(task: EvalTask, artifact: RunArtifact): string {
     artifact.output || "(empty)",
     "```",
     "",
-    "Call the `judge` tool now with your verdict. The verbatim strings",
-    "you put in `met_must`, `failed_must`, `hit_must_not` MUST come from",
-    "the criteria lists above.",
+    "## How to score",
+    "",
+    "- score = N_met_must / (must.length + must_not.length) where N_met_must counts must items met PLUS must_not items NOT hit.",
+    "- The verbatim strings you put in `met_must`, `failed_must`, `hit_must_not` MUST come from the criteria lists above.",
+    "",
+    "Call the `judge` tool now with your verdict.",
   ].join("\n");
 }

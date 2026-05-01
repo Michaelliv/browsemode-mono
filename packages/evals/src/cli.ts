@@ -249,8 +249,21 @@ async function score(
   if (result.errored || !result.artifact) {
     return { ...result, score: null, passed: false };
   }
-  const s = await judge.score(result.task, result.artifact);
-  return { ...result, score: s, passed: s.score >= 1 };
+  // Judge failures (timeout, missing tool call, transport hiccup)
+  // are surfaced as errored runs rather than killing the entire
+  // batch. We keep the artifact so the user can re-grade later.
+  try {
+    const s = await judge.score(result.task, result.artifact);
+    return { ...result, score: s, passed: s.score >= 1 };
+  } catch (e: any) {
+    return {
+      ...result,
+      score: null,
+      passed: false,
+      errored: true,
+      errorMessage: `judge failed: ${e?.message ?? e}`,
+    };
+  }
 }
 
 function printTaskRow(t: EvalTask) {

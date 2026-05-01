@@ -244,9 +244,6 @@ export class Page {
   async viewport(opts: ViewportOpts): Promise<ViewportOpts> {
     return (await this.dispatch("viewport", opts)) as ViewportOpts;
   }
-  async eval<T = unknown>(expression: string): Promise<T> {
-    return (await this.dispatch("eval", expression)) as T;
-  }
   async html(): Promise<string> {
     return (await this.dispatch("html")) as string;
   }

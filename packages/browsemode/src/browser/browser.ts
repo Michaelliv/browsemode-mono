@@ -441,9 +441,6 @@ export class Browser {
   async viewport(opts: ViewportOpts): Promise<ViewportOpts> {
     return this.activePage.viewport(opts);
   }
-  async eval<T = unknown>(expression: string): Promise<T> {
-    return this.activePage.eval<T>(expression);
-  }
   async html(): Promise<string> {
     return this.activePage.html();
   }

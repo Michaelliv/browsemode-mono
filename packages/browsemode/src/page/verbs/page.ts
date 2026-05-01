@@ -303,27 +303,16 @@ export const PAGE_VERBS: Record<string, PageVerbHandler> = {
     throw new Error("scroll: pass { y, dy, to: 'bottom'|'top', or name }");
   },
 
-  eval: async (page, args) => {
-    const expr = typeof args === "string" ? args : asObj(args).expression;
-    if (!expr) throw new Error("eval: pass a JS expression string");
-    // Allow either an expression OR a body with `return ...`. Wrap
-    // anything that looks like a statement-style body in an async
-    // IIFE so the agent can paste either form. Heuristic: if the
-    // text contains a top-level `return` token (outside a function),
-    // wrap it. Heuristic isn't perfect but covers the common case.
-    const trimmed = expr.trim();
-    const looksLikeBody =
-      /\breturn\b/.test(trimmed) ||
-      trimmed.startsWith("const ") ||
-      trimmed.startsWith("let ") ||
-      trimmed.startsWith("var ") ||
-      trimmed.startsWith("if ") ||
-      trimmed.includes(";");
-    const wrapped = looksLikeBody
-      ? `(async () => { ${expr} })()`
-      : expr;
-    return page.mainFrame.session.evalJSON(wrapped);
-  },
+  // page.eval was removed: it ran arbitrary JS in the page's V8
+  // context, which is a second nested sandbox underneath the
+  // QuickJS one. Agents found the layering confusing (they kept
+  // writing function bodies expecting the sandbox semantics they
+  // already had, hitting 'illegal return' errors). The typed
+  // catalog plus `html()` / `markdown()` / `read()` covers every
+  // real read need; click / fill / submit / etc. cover writes.
+  // If a future task genuinely needs raw DOM access we'll add a
+  // specific narrowly-scoped verb (page.text(selector), etc.)
+  // rather than a general-purpose eval escape hatch.
 
   wait: async (_page, args) => {
     const ms = typeof args === "number" ? args : (asObj(args).ms ?? 1000);

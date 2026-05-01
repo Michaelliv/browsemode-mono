@@ -112,17 +112,47 @@ export default function (pi: ExtensionAPI) {
     name: "execute_browsemode",
     label: "Browsemode",
     description:
-      "Run JavaScript in browsemode's QuickJS sandbox against a real browser. " +
-      "The global `page` exposes a typed catalog of named elements: use `page.list()`, " +
-      "`page.find(query)`, `page.describe(name)` to discover, then `page.<name>.click()`, " +
-      "`page.<name>.fill(value)`, `page.goto(url)`, etc. to drive. Top-level `await`, " +
-      "use `return` to surface the result. The browser persists across calls.",
+      [
+        "Drive a real browser. Your `code` runs as the body of an async function inside a small sandbox. The sandbox exposes one global, `page`, which talks to the browser through named verbs.",
+        "",
+        "Rules:",
+        "- Every `page.*` call is async. You MUST `await` every one. Forgetting returns a Promise (or a function reference) which serializes as undefined.",
+        "- End with `return <value>` to surface the result. There is no implicit return.",
+        "- The browser persists across tool calls. Tabs, scroll position, cookies are kept; treat each call as a notebook cell continuing the same kernel.",
+        "- There is no `document`, no `window`, no `eval`. You are not running INSIDE the page; you are talking to the page through named verbs only.",
+        "",
+        "Discovery (always before guessing element names):",
+        "  await page.list()                   // every element name",
+        "  await page.find('login')            // ranked fuzzy search",
+        "  await page.describe('loginButton')  // verbs + kind + role + text",
+        "",
+        "Driving the page:",
+        "  await page.goto(url)",
+        "  await page.scan()                   // refresh the catalog after dynamic content",
+        "  await page.<elementName>.click()",
+        "  await page.<elementName>.fill(value)",
+        "  await page.<formName>.submit()      // the FORM, not the submit button",
+        "  await page.waitFor({ stable: { forMs: 1000 } })",
+        "",
+        "Reading content:",
+        "  await page.title()",
+        "  await page.url()",
+        "  await page.markdown()               // clean text view, prefer this for content extraction",
+        "  await page.html()                   // raw HTML if you really need it",
+        "",
+        "Tabs:",
+        "  await page.tabs.list() / open(url) / switch(id) / close(id)",
+        "",
+        "Tiny example:",
+        "  await page.goto('https://news.ycombinator.com');",
+        "  return (await page.list()).slice(0, 10);",
+      ].join("\n"),
     promptSnippet:
-      "Drive a real browser. Use `page.find(...)` / `page.describe(...)` inside the sandbox to discover elements; `return` the result.",
+      "Drive a real browser via a tiny sandbox. Use `page.find(query)` / `page.describe(name)` to discover, `await page.<name>.<verb>()` to act, `return <value>` to surface results.",
     parameters: Type.Object({
       code: Type.String({
         description:
-          "JavaScript body. The `page` global is bound to the active tab. End with `return <value>`.",
+          "JavaScript body. The `page` global is bound to the active tab. Every `page.*` call is async; `await` each one. End with `return <value>`.",
       }),
     }),
     async execute(_id, params, _signal, _onUpdate, ctx) {
