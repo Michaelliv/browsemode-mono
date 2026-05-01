@@ -65,6 +65,13 @@ export interface BrowsemodeConfig {
     cacheTtlMs: number;
   };
 
+  downloads: {
+    /** Where the downloads watchdog points the browser. Default <cacheDir>/downloads. */
+    path?: string;
+    /** Disable the downloads watchdog entirely. Default false. */
+    disabled: boolean;
+  };
+
   /**
    * If set, every Bus event from any browser instance fires here. CLI
    * uses this for stderr formatting; library callers leave it null.
@@ -136,14 +143,20 @@ function fromEnv(): BrowsemodeConfig {
       port: envInt("BROWSEMODE_CHROME_PORT", 9335),
       extraArgs: envCsv("BROWSEMODE_CHROME_ARGS"),
       profileDir: process.env.BROWSEMODE_CHROME_PROFILE_DIR,
-      spawnTimeoutMs: envPositiveInt("BROWSEMODE_CHROME_SPAWN_TIMEOUT_MS", 10_000),
+      spawnTimeoutMs: envPositiveInt(
+        "BROWSEMODE_CHROME_SPAWN_TIMEOUT_MS",
+        10_000,
+      ),
     },
     defaults: {
       settleMs: envInt("BROWSEMODE_SETTLE_MS", 250),
       cdpTimeoutMs: envPositiveInt("BROWSEMODE_CDP_TIMEOUT_MS", 30_000),
       probeTimeoutMs: envPositiveInt("BROWSEMODE_PROBE_TIMEOUT_MS", 5_000),
       navTimeoutMs: envPositiveInt("BROWSEMODE_NAV_TIMEOUT_MS", 30_000),
-      waitForTimeoutMs: envPositiveInt("BROWSEMODE_WAIT_FOR_TIMEOUT_MS", 15_000),
+      waitForTimeoutMs: envPositiveInt(
+        "BROWSEMODE_WAIT_FOR_TIMEOUT_MS",
+        15_000,
+      ),
       execTimeoutMs: envPositiveInt("BROWSEMODE_EXEC_TIMEOUT_MS", 60_000),
       execMemoryBytes: envInt("BROWSEMODE_EXEC_MEMORY_BYTES", 64 * 1024 * 1024),
       userAgent:
@@ -155,6 +168,10 @@ function fromEnv(): BrowsemodeConfig {
     cookies: {
       userDataDir: process.env.BROWSEMODE_CHROME_USER_DATA_DIR,
       cacheTtlMs: envInt("BROWSEMODE_COOKIE_CACHE_TTL_MS", 10 * 60 * 1000),
+    },
+    downloads: {
+      path: process.env.BROWSEMODE_DOWNLOADS_PATH,
+      disabled: envBool("BROWSEMODE_NO_DOWNLOADS") === true,
     },
     onEvent: debugSubscriber(),
   };
@@ -200,6 +217,7 @@ export function configure(partial: PartialConfig): void {
   if (partial.chrome) Object.assign(cur.chrome, partial.chrome);
   if (partial.defaults) Object.assign(cur.defaults, partial.defaults);
   if (partial.cookies) Object.assign(cur.cookies, partial.cookies);
+  if (partial.downloads) Object.assign(cur.downloads, partial.downloads);
   if ("onEvent" in partial) cur.onEvent = partial.onEvent;
 }
 

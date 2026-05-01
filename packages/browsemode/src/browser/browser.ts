@@ -28,6 +28,7 @@ import {
   saveBrowser,
 } from "../orchestration/persistence.js";
 import type { Watchdog } from "../orchestration/watchdogs/base.js";
+import { DownloadsWatchdog } from "../orchestration/watchdogs/downloads.js";
 import { PopupsWatchdog } from "../orchestration/watchdogs/popups.js";
 import type { MarkdownSection } from "../page/markdown.js";
 import { Page } from "../page/page.js";
@@ -86,7 +87,7 @@ export interface BrowserOpts {
  * Browsers.
  */
 function defaultWatchdogs(): Watchdog[] {
-  return [new PopupsWatchdog()];
+  return [new PopupsWatchdog(), new DownloadsWatchdog()];
 }
 
 export interface NewPageOpts {

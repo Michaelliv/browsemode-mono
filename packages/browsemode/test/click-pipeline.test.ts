@@ -142,8 +142,9 @@ describe("click pipeline (pattern #3 + #4)", () => {
       "mouseReleased",
     ]);
     // Coords identical across the three events (single-click).
-    expect(mouseCalls.every((c) => c.params.x === 100 && c.params.y === 200))
-      .toBe(true);
+    expect(
+      mouseCalls.every((c) => c.params.x === 100 && c.params.y === 200),
+    ).toBe(true);
     // mousePressed/Released specify left button + clickCount=1.
     expect(mouseCalls[1].params.button).toBe("left");
     expect(mouseCalls[1].params.clickCount).toBe(1);

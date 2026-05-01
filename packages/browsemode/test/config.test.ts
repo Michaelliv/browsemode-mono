@@ -122,9 +122,9 @@ describe("env vars override defaults", () => {
         expect(getConfig().defaults.cdpTimeoutMs).toBe(30_000);
       }
       // At least one warning was emitted naming the env var + bad value.
-      expect(warnings.some((w) => w.includes("BROWSEMODE_CDP_TIMEOUT_MS"))).toBe(
-        true,
-      );
+      expect(
+        warnings.some((w) => w.includes("BROWSEMODE_CDP_TIMEOUT_MS")),
+      ).toBe(true);
     } finally {
       (process.stderr.write as any) = origWrite;
     }

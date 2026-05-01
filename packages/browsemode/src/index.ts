@@ -35,8 +35,6 @@ export type {
 } from "./orchestration/fallback.js";
 export { openWithFallback } from "./orchestration/fallback.js";
 export type { PersistedBrowser } from "./orchestration/persistence.js";
-export type { Watchdog, WatchdogFactory } from "./orchestration/watchdogs/base.js";
-export { PopupsWatchdog } from "./orchestration/watchdogs/popups.js";
 export {
   clearBrowser,
   listBrowsers,
@@ -44,6 +42,12 @@ export {
   pathForBrowser,
   saveBrowser,
 } from "./orchestration/persistence.js";
+export type {
+  Watchdog,
+  WatchdogFactory,
+} from "./orchestration/watchdogs/base.js";
+export { DownloadsWatchdog } from "./orchestration/watchdogs/downloads.js";
+export { PopupsWatchdog } from "./orchestration/watchdogs/popups.js";
 export type { MarkdownSection } from "./page/markdown.js";
 export {
   extractSections,
@@ -193,7 +197,10 @@ export const Browsemode = {
     const { PopupsWatchdog: PW } = await import(
       "./orchestration/watchdogs/popups.js"
     );
-    const watchdogs = [new PW()];
+    const { DownloadsWatchdog: DW } = await import(
+      "./orchestration/watchdogs/downloads.js"
+    );
+    const watchdogs = [new PW(), new DW()];
     for (const wd of watchdogs) {
       try {
         const detach = await wd.attach(b);

@@ -153,13 +153,13 @@ async function clickPipeline(
     };
   })()`)) as any;
 
-  if (plan?.error === 'gone') {
+  if (plan?.error === "gone") {
     throw new Error(`Element gone: ${el.name}`);
   }
   if (plan?.validation_error) {
     return { validation_error: plan.validation_error };
   }
-  if (plan?.error === 'no_rect') {
+  if (plan?.error === "no_rect") {
     // Off-screen and unscrollable to: fall back to JS .click().
     await s.evalJSON(`(${find(el)})?.click?.()`);
     return { ok: true, via: "js-click-no-rect" };

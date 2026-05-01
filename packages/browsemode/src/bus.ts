@@ -34,7 +34,28 @@ export type BusEvent =
     }
   | { kind: "watchdog.attached"; name: string }
   | { kind: "watchdog.detached"; name: string }
-  | { kind: "watchdog.error"; name: string; reason: string };
+  | { kind: "watchdog.error"; name: string; reason: string }
+  // Downloads watchdog
+  | {
+      kind: "download.started";
+      guid: string;
+      url: string;
+      suggestedFilename: string;
+    }
+  | {
+      kind: "download.progress";
+      guid: string;
+      receivedBytes: number;
+      totalBytes: number;
+    }
+  | {
+      kind: "download.completed";
+      guid: string;
+      filePath: string;
+      totalBytes: number;
+    }
+  | { kind: "download.canceled"; guid: string }
+  | { kind: "download.failed"; guid: string; reason: string };
 
 export type BusEventKind = BusEvent["kind"];
 export type BusListener<K extends BusEventKind = BusEventKind> = (
