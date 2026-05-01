@@ -153,7 +153,7 @@ packages/browsemode/    SDK + CLI (this is what most users want)
 packages/pi-browse/     pi extension wrapping the SDK as 6 agent tools
 ```
 
-`pi-browse` is a [pi](https://pi.dev) extension. Pi is a minimal terminal coding agent (`@mariozechner/pi-coding-agent` by [Mario Zechner](https://github.com/badlogic)) that can be extended with TypeScript modules registered via `pi.registerTool()`, `pi.registerCommand()`, and friends. The extension lives at `packages/pi-browse/.pi/extensions/browse/index.ts` and follows pi's project-local auto-discovery layout, so dropping the package next to a pi session picks it up automatically.
+`pi-browse` is a [pi](https://pi.dev) extension. It registers browsemode's verbs as tools the agent can call. Lives at `packages/pi-browse/.pi/extensions/browse/index.ts`, auto-discovered by pi when present in the project root.
 
 ## Development
 
