@@ -10,7 +10,7 @@ budget:
   maxSteps: 3
   timeoutSec: 30
 
-# direct-sdk runner picks this up; pi-extension runner ignores `script`.
+# direct-sdk runner picks this up; the pi runner ignores `script`.
 script: |
   await page.scan();
   return await page.title();

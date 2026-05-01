@@ -6,7 +6,7 @@
 // what the right answer is and don't want LLM noise.
 //
 // This is the "smoke test" runner. The real evaluation work happens
-// in the pi-extension runner once that's wired up.
+// in the pi runner.
 
 import { type Runner, registerRunner } from "../runner.js";
 import type { EvalTask, RunArtifact } from "../types.js";
@@ -33,7 +33,7 @@ export class DirectSdkRunner implements Runner {
     if (!t.script) {
       throw new Error(
         `direct-sdk runner needs a 'script' field on task '${t.name}'. ` +
-          `Add one inline in the YAML or run with --runner pi-extension.`,
+          "Add one inline in the YAML or run with --runner pi.",
       );
     }
 

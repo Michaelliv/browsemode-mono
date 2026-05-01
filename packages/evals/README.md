@@ -14,15 +14,23 @@ packages/evals/
 │   ├── runner.ts           Runner interface + registry
 │   ├── runners/
 │   │   ├── direct-sdk.ts   No LLM. YAML carries an inline `script`.
-│   │   └── pi-extension.ts Stub. Will spawn pi --mode rpc with browse extension.
+│   │   ├── pi.ts           Spawns pi rpc with only pi-browsemode loaded.
+│   │   └── lib/
+│   │       ├── pi-rpc-client.ts   JSONL stdio client over child_process
+│   │       └── pi-spawn.ts        Shared pi argv + system prompt + helpers
+│   ├── judge.ts            SubstringJudge (deterministic) + getJudge registry
+│   ├── judges/
+│   │   └── pi.ts           Spawns pi rpc with the judge extension; tool-call args ARE the score
 │   ├── benchmarks/
 │   │   ├── base.ts         Benchmark interface + registry + sample/limit helpers
 │   │   ├── webvoyager.ts   643 tasks; auto-fetches from MinorJerry/WebVoyager
 │   │   └── mind2web.ts     2.3k tasks; needs --data-path (HF-gated)
-│   ├── judge.ts            SubstringJudge (deterministic) + LlmJudge stub
 │   ├── loader.ts           Load every YAML in tasks/
 │   ├── types.ts            EvalTask / RunArtifact / Score / Report
 │   └── index.ts            Public barrel
+├── extensions/
+│   └── judge/
+│       └── index.ts        pi extension: registers the `judge` tool
 └── tasks/
     ├── static/             example-com, hn-top, wikipedia-search
     ├── spa/                todomvc-add
@@ -66,9 +74,27 @@ bun run --filter browsemode-evals evals -- run --benchmark mind2web --data-path 
 bun run --filter browsemode-evals evals -- run --json                          # CI-friendly Report
 ```
 
-The default runner is `direct-sdk`. It needs no API key. It runs the YAML's `script` field via `Browser.exec` and feeds the return value to the judge. This is the smoke test, not a real eval. Benchmark tasks have no `script`, so running them through `direct-sdk` errors out (by design, until the LLM-driven runner lands).
+The default runner is `direct-sdk`. It needs no API key. It runs the YAML's `script` field via `Browser.exec` and feeds the return value to the judge. This is the smoke test, not a real eval. Benchmark tasks have no `script`, so running them through `direct-sdk` errors out (by design).
 
-The real eval runner is `pi-extension` and is **not wired up yet**. The plan: spawn pi (`@mariozechner/pi-coding-agent`) in `--mode rpc` with the `pi-browsemode` extension attached, send the task as a prompt, capture pi's final assistant message as the run artifact. The extension's single-tool surface (`execute_browsemode`) is in place; the runner that drives pi in RPC mode lands in a follow-up commit.
+The real eval runner is `pi`. It spawns pi (`@mariozechner/pi-coding-agent`) in `--mode rpc` loaded with **only** the `pi-browsemode` extension (no global skills/extensions/prompts/context-files), sends the task as a single user prompt, and captures pi's final assistant message as the run artifact. Use `--runner pi` to enable.
+
+The LLM judge follows the same pattern under id `pi`. It spawns pi loaded with **only** the local `extensions/judge/` extension that registers a single `judge` tool with a strict TypeBox schema. The model calls the tool exactly once with `{score, rationale, met_must, failed_must, hit_must_not}`; the judge runner reads the tool-call args off the event stream and returns them as the `Score`. No JSON parsing, no "the model returned almost-but-not-quite valid JSON" failures. Use `--judge pi` to enable.
+
+**Auth**: pi reads `~/.pi/agent/auth.json` for credentials. If you've already run `pi` and `/login`'d to Anthropic Claude Pro/Max, OAuth tokens auto-refresh and Just Work. Both runner and judge inject the `"You are Claude Code, Anthropic's official CLI for Claude."` line via `--append-system-prompt` because Claude Pro OAuth requires it (normally provided by your global `~/.pi/agent/AGENTS.md`, but we strip context files for hermeticity).
+
+**Configuration via env**:
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `PI_BIN` | `pi` | Pi binary to spawn |
+| `PI_PROVIDER` | `anthropic` | LLM provider |
+| `PI_MODEL` | `claude-sonnet-4-20250514` | Model id |
+| `PI_THINKING` | (unset) | `off` / `low` / `medium` / `high` / `xhigh` |
+| `PI_BROWSEMODE_EXT_PATH` | (auto) | Override the runner's extension dir (default: `packages/pi-browsemode/.pi/extensions/browsemode`) |
+| `PI_JUDGE_EXT_PATH` | (auto) | Override the judge's extension dir (default: `packages/evals/extensions/judge`) |
+| `PI_JUDGE_THINKING` | `off` | Thinking level just for the judge subprocess |
+| `PI_BROWSE_OBSCURA_PORT` | `9333` | Where the runner's extension expects obscura |
+| `BROWSEMODE_EVALS_PI_LOG` | (unset) | If set, dump pi's full event stream as JSONL per task for replay |
 
 ## External benchmarks
 
@@ -98,6 +124,6 @@ The `Report` JSON breaks down pass/fail per backend. That number is the actual p
 - ✅ Benchmark scaffolding (Benchmark interface + registry + sample/limit/filter)
 - ✅ WebVoyager adapter (auto-fetch + cache)
 - ✅ Mind2Web adapter (HF-gated, requires --data-path)
-- ⬜ pi-extension runner (waiting on the redone browse extension)
-- ⬜ LLM judge (waiting on pi runner so we can share LLM credentials)
+- ✅ `pi` runner (spawns pi rpc, only pi-browsemode loaded, Anthropic OAuth via auth.json)
+- ✅ `pi` judge (spawns pi rpc, only local judge extension loaded, single `judge` tool with strict schema, no JSON parsing)
 - ⬜ Benchmark-specific scoring (WebVoyager GPT-4V judge, Mind2Web per-step element match)

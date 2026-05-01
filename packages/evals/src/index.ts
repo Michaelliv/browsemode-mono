@@ -8,7 +8,7 @@ export {
   listBenchmarks,
   registerBenchmark,
 } from "./benchmarks/base.js";
-export { getJudge, type Judge, SubstringJudge } from "./judge.js";
+export { getJudge, type Judge, PiJudge, SubstringJudge } from "./judge.js";
 export { loadTasks } from "./loader.js";
 export { runOne } from "./orchestrator.js";
 export {
@@ -32,4 +32,4 @@ export type {
 import "./benchmarks/mind2web.js";
 import "./benchmarks/webvoyager.js";
 import "./runners/direct-sdk.js";
-import "./runners/pi-extension.js";
+import "./runners/pi.js";

@@ -21,7 +21,7 @@
 import "./benchmarks/mind2web.js";
 import "./benchmarks/webvoyager.js";
 import "./runners/direct-sdk.js";
-import "./runners/pi-extension.js";
+import "./runners/pi.js";
 
 import chalk from "chalk";
 import { Command } from "commander";
@@ -83,7 +83,7 @@ program
   )
   .option("-b, --backend <backend>", "obscura | chrome | both", "obscura")
   .option("-r, --runner <id>", "runner implementation", "direct-sdk")
-  .option("-j, --judge <id>", "judge: substring | llm", "substring")
+  .option("-j, --judge <id>", "judge: substring | pi", "substring")
   .option("--obscura-port <port>", "obscura CDP port", "9333")
   .option("--obscura-host <host>", "obscura host", "localhost")
   .option(

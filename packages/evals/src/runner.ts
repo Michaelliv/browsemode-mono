@@ -1,19 +1,15 @@
 // The Runner interface.
 //
-// A Runner is "how the agent actually attempts the task". Different
-// runners exist so we can compare:
+// A Runner is "how the agent actually attempts the task". Two are
+// shipped:
 //
 //   - direct-sdk: TypeScript driver that calls browsemode's SDK
 //     directly, no LLM. Used to verify the eval framework itself
 //     works end-to-end against deterministic page flows.
-//   - pi-extension: pi (the coding agent) runs the task as a
-//     prompt with the browse extension attached, the LLM drives.
-//     This is what we'll actually score in real eval runs.
-//
-// The pi-extension runner is intentionally NOT wired up yet. The
-// pi-browsemode extension's tool surface is now settled
-// (single-tool, runline-style); the runner that spawns pi in RPC
-// mode and plumbs prompts/responses lands in a follow-up commit.
+//   - pi: spawns pi (@mariozechner/pi-coding-agent) in RPC mode
+//     loaded with only the pi-browsemode extension. The model
+//     drives the browser via execute_browsemode tool calls. This
+//     is the runner used for real eval runs.
 
 import type { Browser } from "browsemode";
 import type { Backend, EvalTask, RunArtifact } from "./types.js";
@@ -30,7 +26,7 @@ export interface RunnerContext {
 }
 
 export interface Runner {
-  /** Stable id ("direct-sdk", "pi-extension", ...). */
+  /** Stable id ("direct-sdk", "pi", ...). */
   readonly id: string;
   /** Attempt the task. Should respect ctx.signal. */
   run(ctx: RunnerContext): Promise<RunArtifact>;
