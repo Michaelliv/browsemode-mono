@@ -68,6 +68,10 @@ class PiRunner implements Runner {
       args,
       env: {
         PI_BROWSE_BROWSER_ID: browserId,
+        // Tell the extension which backend the orchestrator picked
+        // so chrome-only tasks force the chrome path even when an
+        // obscura is running on the configured port.
+        PI_BROWSE_BACKEND: ctx.backend,
         PI_BROWSE_OBSCURA_PORT:
           process.env.PI_BROWSE_OBSCURA_PORT ?? String(9333),
       },

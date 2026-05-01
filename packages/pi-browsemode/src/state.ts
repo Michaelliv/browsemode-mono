@@ -46,8 +46,17 @@ export async function attachBrowser(): Promise<Browser> {
 
 /**
  * Best-effort attach. If the snapshot is missing or stale, opens a
- * fresh primary (obscura first, Chrome fallback) at about:blank.
- * The agent navigates wherever it wants once it has the handle.
+ * fresh primary at about:blank. The agent navigates wherever it
+ * wants once it has the handle.
+ *
+ * Backend selection via PI_BROWSE_BACKEND:
+ *   - "obscura" (default): try obscura on PI_BROWSE_OBSCURA_PORT,
+ *     fall back to managed Chrome if obscura isn't reachable.
+ *   - "chrome": skip obscura entirely, spawn the managed Chrome.
+ *
+ * The eval pi runner sets this from the orchestrator's --backend
+ * flag so chrome-only tasks force the chrome path even when an
+ * obscura process is running on :9333.
  */
 export async function ensureBrowser(): Promise<Browser> {
   if (_browser) return _browser;
@@ -57,17 +66,21 @@ export async function ensureBrowser(): Promise<Browser> {
   } catch {
     // No usable snapshot — open fresh.
   }
-  // Try connecting to a running obscura first; fall back to Chrome
-  // if it's not reachable.
-  try {
-    _browser = await Browsemode.connect({
-      id: _browserId,
-      port: Number.parseInt(process.env.PI_BROWSE_OBSCURA_PORT ?? "9333", 10),
-    });
-    await _browser.newPage();
-    return _browser;
-  } catch {
-    // obscura not up; spawn the managed Chrome.
+  const backend = process.env.PI_BROWSE_BACKEND ?? "obscura";
+  if (backend === "obscura") {
+    try {
+      _browser = await Browsemode.connect({
+        id: _browserId,
+        port: Number.parseInt(
+          process.env.PI_BROWSE_OBSCURA_PORT ?? "9333",
+          10,
+        ),
+      });
+      await _browser.newPage();
+      return _browser;
+    } catch {
+      // obscura not up; fall through to Chrome.
+    }
   }
   _browser = await Browsemode.launch({ id: _browserId });
   await _browser.newPage();
