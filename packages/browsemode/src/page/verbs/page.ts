@@ -257,6 +257,21 @@ export const PAGE_VERBS: Record<string, PageVerbHandler> = {
   },
 
   scroll: async (page, args) => {
+    // Accept a few natural call shapes:
+    //   page.scroll('elementName')                      -> scroll an element into view
+    //   page.scroll(500)                                 -> scroll to absolute y
+    //   page.scroll({ y: 500 })                          -> same
+    //   page.scroll({ dy: 500 })                         -> relative delta y (positive = down)
+    //   page.scroll({ to: 'bottom' | 'top' })            -> scroll endpoints
+    //   page.scroll({ direction: 'down' })               -> half-viewport down
+    //   page.scroll({ direction: 'up'   })               -> half-viewport up
+    //   page.scroll({ direction: 'down', amount: 3 })    -> N viewports down
+    //   page.scroll({ name: 'foo' })                     -> scroll element into view
+    //
+    // The `direction` form is what most agents reach for first because it
+    // matches Puppeteer/Playwright keyboard intuition. Supporting it
+    // structurally is cheaper than telling the agent to remember a
+    // dy-only API.
     const opts =
       typeof args === "string"
         ? { name: args }
@@ -269,8 +284,6 @@ export const PAGE_VERBS: Record<string, PageVerbHandler> = {
       if (!el) throw new Error(`scroll: unknown name '${opts.name}'`);
       const find =
         el.selector ?? `document.querySelector('[data-browsemode="${el.id}"]')`;
-      // Route to the element's frame session so iframe elements scroll
-      // correctly. Page hands us its main session; we need the element's.
       const target = el.sessionId
         ? new (await import("../../cdp/session.js")).Session(
             session.cdp,
@@ -300,7 +313,33 @@ export const PAGE_VERBS: Record<string, PageVerbHandler> = {
       await session.evalJSON(`window.scrollBy(0, ${opts.dy})`);
       return { scrolledBy: opts.dy };
     }
-    throw new Error("scroll: pass { y, dy, to: 'bottom'|'top', or name }");
+    if (
+      typeof opts.direction === "string" &&
+      (opts.direction === "up" ||
+        opts.direction === "down" ||
+        opts.direction === "left" ||
+        opts.direction === "right")
+    ) {
+      const viewports = typeof opts.amount === "number" ? opts.amount : 1;
+      const sign =
+        opts.direction === "up" || opts.direction === "left" ? -1 : 1;
+      const axis =
+        opts.direction === "left" || opts.direction === "right"
+          ? "window.innerWidth"
+          : "window.innerHeight";
+      // Half a viewport per amount unit feels closer to how a human
+      // reads through a long page than a full viewport jump.
+      const expr =
+        opts.direction === "left" || opts.direction === "right"
+          ? `window.scrollBy(${sign * viewports * 0.5} * ${axis}, 0)`
+          : `window.scrollBy(0, ${sign * viewports * 0.5} * ${axis})`;
+      await session.evalJSON(expr);
+      return { scrolledBy: { direction: opts.direction, amount: viewports } };
+    }
+    throw new Error(
+      "scroll: pass an element name, a number (y), or one of " +
+        "{ y }, { dy }, { to: 'bottom'|'top' }, { direction: 'up'|'down'|'left'|'right', amount? }",
+    );
   },
 
   // page.eval was removed: it ran arbitrary JS in the page's V8

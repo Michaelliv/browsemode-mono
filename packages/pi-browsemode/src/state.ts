@@ -71,10 +71,7 @@ export async function ensureBrowser(): Promise<Browser> {
     try {
       _browser = await Browsemode.connect({
         id: _browserId,
-        port: Number.parseInt(
-          process.env.PI_BROWSE_OBSCURA_PORT ?? "9333",
-          10,
-        ),
+        port: Number.parseInt(process.env.PI_BROWSE_OBSCURA_PORT ?? "9333", 10),
       });
       await _browser.newPage();
       return _browser;

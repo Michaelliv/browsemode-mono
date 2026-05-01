@@ -162,9 +162,8 @@ function buildJudgePrompt(task: EvalTask, artifact: RunArtifact): string {
   if (!hasExplicitCriteria) {
     // Open-ended task (typical for WebVoyager / Mind2Web). Grade
     // against whether the agent accomplished what the task
-    // describes. Binary scoring: original benchmarks pass/fail per
-    // task, so we mirror that. Partial credit is OK only when the
-    // agent did most of the work but missed something specific.
+    // describes. Binary scoring with a known carve-out for honest
+    // "could not find" answers.
     return [
       "## Task",
       task.task,
@@ -179,11 +178,18 @@ function buildJudgePrompt(task: EvalTask, artifact: RunArtifact): string {
       "",
       "This is an open-ended task with no explicit must/must_not criteria. Decide whether the agent's output accomplishes the task as a real human would have asked for it.",
       "",
-      "- score = 1.0 if the output is a complete, correct answer to the task.",
-      "- score = 0.0 if the agent failed (empty output, wrong page, hallucinated, refused).",
-      "- score in (0, 1) only when the agent partially accomplished the task (e.g. found the right page but reported an incomplete or off-by-one answer).",
+      "### Scoring rubric",
       "",
-      "Bias toward binary 1.0 / 0.0 unless there's a clear partial-success story.",
+      "- **1.0** \u2014 the output answers the task correctly AND cites a plausible source URL on the target site AND includes verbatim quoted evidence from the page that supports the claim.",
+      "- **0.7\u20130.9** \u2014 the output is correct but light on citations/evidence, OR fully cited but slightly off-target (right page, wrong sub-question).",
+      "- **0.5** \u2014 the agent honestly reported they could not find the requested information after real browsing. Reward honesty: 'I could not find X on this site' is a legitimate answer when the site doesn't have what was asked, far better than fabrication. The agent's transcript should show real navigation, not a quick give-up.",
+      "- **0.0** \u2014 the agent failed (empty output, refused, OR fabricated). Fabrication = the answer contains specific facts (names, dates, prices, quotes) that the agent could not have observed without an actual page source. SUSPICION OF FABRICATION ALONE IS NOT ENOUGH; you must point to a specific claim that lacks any supporting evidence in the agent's reply.",
+      "",
+      "### Important: don't equate 'I cannot verify' with 'fabricated'",
+      "",
+      "You don't have browser access yourself. Do NOT mark an answer as fabricated just because you can't independently confirm a fact (a player name, a stock price, an article date). Look at the agent's output: if it includes a plausible URL on the target site and a verbatim quote that internally supports the claim, accept the answer. Only mark fabrication when the answer contradicts the included quote, or when the answer is rich with specifics that have no quoted source at all.",
+      "",
+      "### Output format",
       "",
       "`met_must`, `failed_must`, `hit_must_not` MUST be empty arrays \u2014 there are no explicit criteria for this task. Put your reasoning in `rationale`.",
       "",

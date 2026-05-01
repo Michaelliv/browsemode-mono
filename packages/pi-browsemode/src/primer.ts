@@ -90,7 +90,7 @@ export function buildPrimer(input: PrimerInput): string {
     "- **select**: `choose`, `options`, `value`",
     "- **form**: `submit`, `fields`, `fill`",
     "",
-    "**Submitting a form**: clicking a submit button often does not actually navigate (depends on the browser backend). Calling `submit()` on the form element is reliable. Use `page.find(\"form\")` or `page.list()` to locate the form name.",
+    '**Submitting a form**: clicking a submit button often does not actually navigate (depends on the browser backend). Calling `submit()` on the form element is reliable. Use `page.find("form")` or `page.list()` to locate the form name.',
     "",
     "```js",
     'await page.searchInput.fill("hello");',

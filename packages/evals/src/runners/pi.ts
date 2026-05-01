@@ -192,7 +192,11 @@ function buildTaskPrompt(ctx: RunnerContext): string {
     lines.push("");
   }
   lines.push(
-    "Reply with the final answer in plain text. Use `execute_browsemode` for any browser action; do NOT shell out to other tools for browsing.",
+    "How to reply:",
+    "- Use `execute_browsemode` for ALL browser actions. Do NOT use bash, fetch, or other tools for browsing.",
+    "- In your final reply, include (a) the source URL you read from, and (b) a short verbatim quote from page.markdown() or page.html() that supports your answer. Cite your work like a journalist; the grader needs evidence the answer came from the page, not from prior knowledge.",
+    "- If you cannot find the requested information, say so plainly (\"I could not find X on this site\"). Do NOT substitute a different topic. Do NOT fill in plausible-sounding details. An honest 'not found' is correct when the page doesn't have it.",
+    "- Never invent URLs, dates, names, prices, or quotes. If you didn't observe it through a `page.*` call this session, don't put it in your answer.",
   );
   return lines.join("\n");
 }
