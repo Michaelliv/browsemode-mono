@@ -92,7 +92,10 @@ function envBool(name: string): boolean | undefined {
 function envCsv(name: string): string[] {
   const v = process.env[name];
   if (!v) return [];
-  return v.split(",").map((s) => s.trim()).filter(Boolean);
+  return v
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
 }
 
 function debugSubscriber(): ((e: BusEvent) => void) | undefined {
@@ -124,10 +127,7 @@ function fromEnv(): BrowsemodeConfig {
       navTimeoutMs: envInt("BROWSEMODE_NAV_TIMEOUT_MS", 30_000),
       waitForTimeoutMs: envInt("BROWSEMODE_WAIT_FOR_TIMEOUT_MS", 15_000),
       execTimeoutMs: envInt("BROWSEMODE_EXEC_TIMEOUT_MS", 60_000),
-      execMemoryBytes: envInt(
-        "BROWSEMODE_EXEC_MEMORY_BYTES",
-        64 * 1024 * 1024
-      ),
+      execMemoryBytes: envInt("BROWSEMODE_EXEC_MEMORY_BYTES", 64 * 1024 * 1024),
       userAgent:
         process.env.BROWSEMODE_USER_AGENT ??
         "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
@@ -161,7 +161,7 @@ export function getConfig(): BrowsemodeConfig {
  */
 export type PartialConfig = {
   [K in keyof BrowsemodeConfig]?: BrowsemodeConfig[K] extends object
-    ? BrowsemodeConfig[K] extends ((...a: any[]) => any)
+    ? BrowsemodeConfig[K] extends (...a: any[]) => any
       ? BrowsemodeConfig[K]
       : { [P in keyof BrowsemodeConfig[K]]?: BrowsemodeConfig[K][P] }
     : BrowsemodeConfig[K];

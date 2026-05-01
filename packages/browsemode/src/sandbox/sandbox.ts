@@ -14,13 +14,13 @@
 // so the sandbox doesn't need to know it.
 
 import {
-  type QuickJSDeferredPromise,
   getQuickJS,
+  type QuickJSDeferredPromise,
   shouldInterruptAfterDeadline,
 } from "quickjs-emscripten";
 import type { Page } from "../page/page.js";
-import type { ExecOpts, ExecuteResult } from "../types.js";
 import { pageVerbNames } from "../page/verbs/page.js";
+import type { ExecOpts, ExecuteResult } from "../types.js";
 import { buildSandboxSource } from "./proxy.js";
 
 export class Sandbox {
@@ -93,11 +93,11 @@ export class Sandbox {
                   const h = ctx.newError(msg);
                   deferred.reject(h);
                   h.dispose();
-                }
+                },
               );
 
             return deferred.handle;
-          }
+          },
         );
         ctx.setProp(ctx.global, "__browsemode_invoke", invokeFn);
         invokeFn.dispose();
@@ -140,7 +140,11 @@ export class Sandbox {
           await drainAsync(ctx, runtime, pending, deadline, timeoutMs);
           const settled = readProp(ctx, stateHandle, "settled") === true;
           if (!settled) {
-            return { result: null, error: `Timeout after ${timeoutMs}ms`, logs };
+            return {
+              result: null,
+              error: `Timeout after ${timeoutMs}ms`,
+              logs,
+            };
           }
           const err = readProp(ctx, stateHandle, "e");
           if (err !== undefined) {
@@ -192,7 +196,7 @@ async function drainAsync(
   runtime: any,
   pending: Set<QuickJSDeferredPromise>,
   deadline: number,
-  timeoutMs: number
+  timeoutMs: number,
 ): Promise<void> {
   drainJobs(ctx, runtime, deadline, timeoutMs);
   while (pending.size > 0) {
@@ -205,7 +209,7 @@ async function drainAsync(
         new Promise<never>((_, rej) => {
           timer = setTimeout(
             () => rej(new Error(`Timeout after ${timeoutMs}ms`)),
-            remaining
+            remaining,
           );
         }),
       ]);
@@ -221,7 +225,7 @@ function drainJobs(
   ctx: any,
   runtime: any,
   deadline: number,
-  timeoutMs: number
+  timeoutMs: number,
 ): void {
   while (runtime.hasPendingJob()) {
     if (Date.now() >= deadline) throw new Error(`Timeout after ${timeoutMs}ms`);

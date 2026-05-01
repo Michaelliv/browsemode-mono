@@ -32,7 +32,7 @@ export interface Frame {
  */
 export async function refreshFrames(
   browser: Browser,
-  page: Page
+  page: Page,
 ): Promise<void> {
   // Walk Target.getTargets browser-wide. The browser session sees every
   // target; per-tab sessions can't enumerate iframes that haven't been

@@ -1,8 +1,10 @@
 import { describe, expect, it } from "bun:test";
-import { Sandbox } from "../src/sandbox/sandbox.js";
 import type { Page } from "../src/page/page.js";
+import { Sandbox } from "../src/sandbox/sandbox.js";
 
-function fakePage(handler: (path: string, args: unknown) => Promise<unknown>): Page {
+function fakePage(
+  handler: (path: string, args: unknown) => Promise<unknown>,
+): Page {
   return { dispatch: handler } as unknown as Page;
 }
 
@@ -69,7 +71,9 @@ describe("Sandbox", () => {
   it("disables fetch inside the script", async () => {
     const page = fakePage(async () => null);
     const sb = new Sandbox(() => page);
-    const r = await sb.execute(`try { fetch('x'); return 'no'; } catch(e) { return e.message; }`);
+    const r = await sb.execute(
+      `try { fetch('x'); return 'no'; } catch(e) { return e.message; }`,
+    );
     expect(r.result).toMatch(/disabled/i);
   });
 });

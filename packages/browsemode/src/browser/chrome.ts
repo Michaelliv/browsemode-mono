@@ -128,7 +128,7 @@ export async function chromeStatus(): Promise<ChromeStatus> {
 }
 
 export async function ensureChrome(
-  opts: EnsureChromeOpts = {}
+  opts: EnsureChromeOpts = {},
 ): Promise<number> {
   const cfg = getConfig().chrome;
   const status = await chromeStatus();
@@ -138,7 +138,7 @@ export async function ensureChrome(
   if (!exec) {
     throw new Error(
       "No Chrome / Chromium / Brave / Edge / Arc found. Set BROWSEMODE_CHROME_PATH " +
-        "or call Browsemode.configure({ chrome: { path: '/usr/bin/chromium' } })."
+        "or call Browsemode.configure({ chrome: { path: '/usr/bin/chromium' } }).",
     );
   }
 
@@ -183,7 +183,7 @@ export async function ensureChrome(
     await new Promise((r) => setTimeout(r, 200));
   }
   throw new Error(
-    `Chrome spawned (pid ${child.pid}) but port ${port} never opened within ${cfg.spawnTimeoutMs}ms`
+    `Chrome spawned (pid ${child.pid}) but port ${port} never opened within ${cfg.spawnTimeoutMs}ms`,
   );
 }
 

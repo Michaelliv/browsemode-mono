@@ -5,7 +5,11 @@
 // Emits `fallback.triggered` when retrying and `fallback.failed` if
 // Chrome also misses the expectation.
 
-import { Browser, type BrowserOpts, type NewPageOpts } from "../browser/browser.js";
+import {
+  Browser,
+  type BrowserOpts,
+  type NewPageOpts,
+} from "../browser/browser.js";
 import type { Bus } from "../bus.js";
 import type { Page } from "../page/page.js";
 import type { Expectation } from "../types.js";
@@ -43,7 +47,7 @@ export interface OpenResult {
  * the browser+page that actually held up, plus whether we fell back.
  */
 export async function openWithFallback(
-  opts: OpenWithFallbackOpts
+  opts: OpenWithFallbackOpts,
 ): Promise<OpenResult> {
   // Default expectation: catches obvious wedges (ARS returning 2 elements,
   // CloudFront walls returning 0) without false-positives on truly tiny

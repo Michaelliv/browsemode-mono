@@ -19,7 +19,7 @@
  */
 export function buildSandboxSource(
   userCode: string,
-  pageVerbs: readonly string[]
+  pageVerbs: readonly string[],
 ): string {
   const trimmed = userCode.trim();
   // Heuristic: treat as an arrow function if the body looks like one.

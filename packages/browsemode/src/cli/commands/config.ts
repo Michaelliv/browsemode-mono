@@ -31,10 +31,10 @@ export async function configShow(flags: GlobalFlags): Promise<void> {
       lineOut(`chrome.path           ${cfg.chrome.path ?? "(auto-detect)"}`);
       lineOut(`chrome.port           ${cfg.chrome.port}`);
       lineOut(
-        `chrome.extraArgs      ${cfg.chrome.extraArgs.length ? cfg.chrome.extraArgs.join(" ") : "(none)"}`
+        `chrome.extraArgs      ${cfg.chrome.extraArgs.length ? cfg.chrome.extraArgs.join(" ") : "(none)"}`,
       );
       lineOut(
-        `chrome.profileDir     ${cfg.chrome.profileDir ?? `(${cfg.cacheDir}/chrome-profile)`}`
+        `chrome.profileDir     ${cfg.chrome.profileDir ?? `(${cfg.cacheDir}/chrome-profile)`}`,
       );
       lineOut(`chrome.spawnTimeout   ${cfg.chrome.spawnTimeoutMs}ms`);
       lineOut("");
@@ -46,7 +46,7 @@ export async function configShow(flags: GlobalFlags): Promise<void> {
       lineOut(`defaults.stealth      ${cfg.defaults.stealth}`);
       lineOut("");
       lineOut(
-        `cookies.userDataDir   ${cfg.cookies.userDataDir ?? "(macOS default)"}`
+        `cookies.userDataDir   ${cfg.cookies.userDataDir ?? "(macOS default)"}`,
       );
       lineOut(`cookies.cacheTTL      ${cfg.cookies.cacheTtlMs}ms`);
       lineOut("");

@@ -1,8 +1,8 @@
 import { describe, expect, it } from "bun:test";
 import {
+  type ChromeCookie,
   clearCookieCache,
   toCdpCookies,
-  type ChromeCookie,
 } from "../src/browser/cookies.js";
 
 const cookie = (overrides: Partial<ChromeCookie> = {}): ChromeCookie => ({

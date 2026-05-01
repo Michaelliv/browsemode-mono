@@ -39,12 +39,9 @@ export const PAGE_VERBS: Record<string, PageVerbHandler> = {
     const timeoutMs = asObj(args).timeoutMs || 30_000;
     const session = page.mainFrame.session;
     try {
-      await session.cdp.send(
-        "Page.navigate",
-        { url, waitUntil },
-        session.id,
-        { timeoutMs }
-      );
+      await session.cdp.send("Page.navigate", { url, waitUntil }, session.id, {
+        timeoutMs,
+      });
     } catch (e: any) {
       if (!/timed out/.test(e?.message ?? "")) throw e;
       // Lifecycle event never fired (heavy ad-tech, infinite retry loops,
@@ -73,7 +70,7 @@ export const PAGE_VERBS: Record<string, PageVerbHandler> = {
     // Vision via markit. Lazy import keeps cold start fast for callers
     // that never use this verb.
     const html = await page.mainFrame.session.evalString(
-      "document.documentElement.outerHTML"
+      "document.documentElement.outerHTML",
     );
     const { htmlToMarkdown } = await import("../markdown.js");
     return htmlToMarkdown(html);
@@ -95,14 +92,14 @@ export const PAGE_VERBS: Record<string, PageVerbHandler> = {
       // fall through to live HTML
     }
     const html = await page.mainFrame.session.evalString(
-      "document.documentElement.outerHTML"
+      "document.documentElement.outerHTML",
     );
     return { markdown: await htmlToMarkdown(html) };
   },
 
   sections: async (page) => {
     const html = await page.mainFrame.session.evalString(
-      "document.documentElement.outerHTML"
+      "document.documentElement.outerHTML",
     );
     const { htmlToMarkdown, extractSections } = await import("../markdown.js");
     return extractSections(await htmlToMarkdown(html));
@@ -116,7 +113,7 @@ export const PAGE_VERBS: Record<string, PageVerbHandler> = {
     const rowNames = page.collections.get(collName);
     if (!rowNames) {
       throw new Error(
-        `rows: no collection '${collName}'. Available: ${[...page.collections.keys()].join(", ") || "(none — scan first)"}`
+        `rows: no collection '${collName}'. Available: ${[...page.collections.keys()].join(", ") || "(none — scan first)"}`,
       );
     }
     // Anchor each row by the first interactable's data-browsemode id and
@@ -144,7 +141,8 @@ export const PAGE_VERBS: Record<string, PageVerbHandler> = {
         return cur.outerHTML;
       });
     })()`;
-    const htmls = await page.mainFrame.session.evalJSON<(string | null)[]>(expr);
+    const htmls =
+      await page.mainFrame.session.evalJSON<(string | null)[]>(expr);
     const { htmlToMarkdown } = await import("../markdown.js");
     const out: { row: number; markdown: string }[] = [];
     for (let i = 0; i < htmls.length; i++) {
@@ -236,7 +234,11 @@ export const PAGE_VERBS: Record<string, PageVerbHandler> = {
       throw new Error("clickAt: pass { x, y }");
     }
     const session = page.mainFrame.session;
-    await session.send("Input.dispatchMouseEvent", { type: "mouseMoved", x, y });
+    await session.send("Input.dispatchMouseEvent", {
+      type: "mouseMoved",
+      x,
+      y,
+    });
     await session.send("Input.dispatchMouseEvent", {
       type: "mousePressed",
       x,
@@ -260,30 +262,29 @@ export const PAGE_VERBS: Record<string, PageVerbHandler> = {
         ? { name: args }
         : typeof args === "number"
           ? { y: args }
-          : (args as any) ?? {};
+          : ((args as any) ?? {});
     const session = page.mainFrame.session;
     if (opts.name) {
       const el = page.elements.get(opts.name);
       if (!el) throw new Error(`scroll: unknown name '${opts.name}'`);
       const find =
-        el.selector ??
-        `document.querySelector('[data-browsemode="${el.id}"]')`;
+        el.selector ?? `document.querySelector('[data-browsemode="${el.id}"]')`;
       // Route to the element's frame session so iframe elements scroll
       // correctly. Page hands us its main session; we need the element's.
       const target = el.sessionId
         ? new (await import("../../cdp/session.js")).Session(
             session.cdp,
-            el.sessionId
+            el.sessionId,
           )
         : session;
       await target.evalJSON(
-        `(${find})?.scrollIntoView({ behavior: 'instant', block: 'center' })`
+        `(${find})?.scrollIntoView({ behavior: 'instant', block: 'center' })`,
       );
       return { scrolledTo: opts.name };
     }
     if (opts.to === "bottom") {
       await session.evalJSON(
-        "window.scrollTo(0, document.documentElement.scrollHeight)"
+        "window.scrollTo(0, document.documentElement.scrollHeight)",
       );
       return { scrolledTo: "bottom" };
     }
@@ -309,15 +310,22 @@ export const PAGE_VERBS: Record<string, PageVerbHandler> = {
   },
 
   wait: async (_page, args) => {
-    const ms = typeof args === "number" ? args : asObj(args).ms ?? 1000;
+    const ms = typeof args === "number" ? args : (asObj(args).ms ?? 1000);
     await new Promise((r) => setTimeout(r, ms));
     return {};
   },
 
   waitFor: async (page, args) => {
     const opts = typeof args === "string" ? { name: args } : asObj(args);
-    const { name, text, urlMatches, titleMatches, urlChanges, selector, stable } =
-      opts;
+    const {
+      name,
+      text,
+      urlMatches,
+      titleMatches,
+      urlChanges,
+      selector,
+      stable,
+    } = opts;
     const timeout = opts.timeoutMs ?? 15_000;
     const interval = opts.intervalMs ?? 250;
     if (
@@ -330,7 +338,7 @@ export const PAGE_VERBS: Record<string, PageVerbHandler> = {
       !stable
     ) {
       throw new Error(
-        "waitFor: pass one of { name, text, urlMatches, titleMatches, urlChanges, selector, stable }"
+        "waitFor: pass one of { name, text, urlMatches, titleMatches, urlChanges, selector, stable }",
       );
     }
     const session = page.mainFrame.session;
@@ -346,8 +354,7 @@ export const PAGE_VERBS: Record<string, PageVerbHandler> = {
     const titleRe = titleMatches ? new RegExp(titleMatches, "i") : null;
     const stableCfg = stable
       ? {
-          forMs:
-            typeof stable === "number" ? stable : stable.forMs ?? 2000,
+          forMs: typeof stable === "number" ? stable : (stable.forMs ?? 2000),
           minCount:
             (stable && typeof stable === "object" && stable.minCount) || 0,
         }
@@ -368,9 +375,17 @@ export const PAGE_VERBS: Record<string, PageVerbHandler> = {
           selFound?: boolean;
         }>(probeExpr);
         if (urlRe && urlRe.test(probe.url))
-          return { found: probe.url, kind: "urlMatches", elapsedMs: Date.now() - start };
+          return {
+            found: probe.url,
+            kind: "urlMatches",
+            elapsedMs: Date.now() - start,
+          };
         if (titleRe && titleRe.test(probe.title))
-          return { found: probe.title, kind: "titleMatches", elapsedMs: Date.now() - start };
+          return {
+            found: probe.title,
+            kind: "titleMatches",
+            elapsedMs: Date.now() - start,
+          };
         if (urlChanges && probe.url !== baseUrl)
           return {
             found: probe.url,
@@ -379,7 +394,11 @@ export const PAGE_VERBS: Record<string, PageVerbHandler> = {
             elapsedMs: Date.now() - start,
           };
         if (selector && probe.selFound)
-          return { found: selector, kind: "selector", elapsedMs: Date.now() - start };
+          return {
+            found: selector,
+            kind: "selector",
+            elapsedMs: Date.now() - start,
+          };
       }
       if (name || text || stableCfg) await page.scan();
       if (name && page.elements.has(name))
@@ -387,9 +406,14 @@ export const PAGE_VERBS: Record<string, PageVerbHandler> = {
       if (text) {
         const lower = text.toLowerCase();
         const hit = [...page.elements.values()].find((e) =>
-          e.text.toLowerCase().includes(lower)
+          e.text.toLowerCase().includes(lower),
         );
-        if (hit) return { found: hit.name, kind: "text", elapsedMs: Date.now() - start };
+        if (hit)
+          return {
+            found: hit.name,
+            kind: "text",
+            elapsedMs: Date.now() - start,
+          };
       }
       if (stableCfg) {
         const cur = page.elements.size;
@@ -436,19 +460,19 @@ export const PAGE_VERBS: Record<string, PageVerbHandler> = {
           rows: rows.length,
           totalItems: rows.reduce((a, r) => a + r.length, 0),
         },
-      ])
+      ]),
     ),
 
   rescan: async () => ({ triggered: true }), // actual rescan happens after dispatch returns
 
   find: async (page, args) => {
-    const q = typeof args === "string" ? args : asObj(args).query ?? "";
+    const q = typeof args === "string" ? args : (asObj(args).query ?? "");
     const lower = q.toLowerCase();
     return [...page.elements.values()]
       .filter(
         (e) =>
           e.name.toLowerCase().includes(lower) ||
-          e.text.toLowerCase().includes(lower)
+          e.text.toLowerCase().includes(lower),
       )
       .slice(0, 10)
       .map((e) => ({ name: e.name, kind: e.kind, text: e.text }));

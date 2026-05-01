@@ -88,7 +88,7 @@ export function output(
     json?: () => unknown;
     quiet?: () => void;
     human: () => void;
-  }
+  },
 ): void {
   if (opts.json && handlers.json) {
     jsonOut(handlers.json());

@@ -20,20 +20,24 @@ export interface KeyParams {
 }
 
 export const KEY_MAP: Record<string, KeyParams> = {
-  Enter:      { key: "Enter",      code: "Enter",      text: "\r", windowsVirtualKeyCode: 13 },
-  Tab:        { key: "Tab",        code: "Tab",                    windowsVirtualKeyCode: 9 },
-  Escape:     { key: "Escape",     code: "Escape",                 windowsVirtualKeyCode: 27 },
-  Backspace:  { key: "Backspace",  code: "Backspace",              windowsVirtualKeyCode: 8 },
-  Delete:     { key: "Delete",     code: "Delete",                 windowsVirtualKeyCode: 46 },
-  ArrowUp:    { key: "ArrowUp",    code: "ArrowUp",                windowsVirtualKeyCode: 38 },
-  ArrowDown:  { key: "ArrowDown",  code: "ArrowDown",              windowsVirtualKeyCode: 40 },
-  ArrowLeft:  { key: "ArrowLeft",  code: "ArrowLeft",              windowsVirtualKeyCode: 37 },
-  ArrowRight: { key: "ArrowRight", code: "ArrowRight",             windowsVirtualKeyCode: 39 },
-  Home:       { key: "Home",       code: "Home",                   windowsVirtualKeyCode: 36 },
-  End:        { key: "End",        code: "End",                    windowsVirtualKeyCode: 35 },
-  PageUp:     { key: "PageUp",     code: "PageUp",                 windowsVirtualKeyCode: 33 },
-  PageDown:   { key: "PageDown",   code: "PageDown",               windowsVirtualKeyCode: 34 },
-  Space:      { key: " ",          code: "Space",      text: " ",  windowsVirtualKeyCode: 32 },
+  Enter: { key: "Enter", code: "Enter", text: "\r", windowsVirtualKeyCode: 13 },
+  Tab: { key: "Tab", code: "Tab", windowsVirtualKeyCode: 9 },
+  Escape: { key: "Escape", code: "Escape", windowsVirtualKeyCode: 27 },
+  Backspace: { key: "Backspace", code: "Backspace", windowsVirtualKeyCode: 8 },
+  Delete: { key: "Delete", code: "Delete", windowsVirtualKeyCode: 46 },
+  ArrowUp: { key: "ArrowUp", code: "ArrowUp", windowsVirtualKeyCode: 38 },
+  ArrowDown: { key: "ArrowDown", code: "ArrowDown", windowsVirtualKeyCode: 40 },
+  ArrowLeft: { key: "ArrowLeft", code: "ArrowLeft", windowsVirtualKeyCode: 37 },
+  ArrowRight: {
+    key: "ArrowRight",
+    code: "ArrowRight",
+    windowsVirtualKeyCode: 39,
+  },
+  Home: { key: "Home", code: "Home", windowsVirtualKeyCode: 36 },
+  End: { key: "End", code: "End", windowsVirtualKeyCode: 35 },
+  PageUp: { key: "PageUp", code: "PageUp", windowsVirtualKeyCode: 33 },
+  PageDown: { key: "PageDown", code: "PageDown", windowsVirtualKeyCode: 34 },
+  Space: { key: " ", code: "Space", text: " ", windowsVirtualKeyCode: 32 },
 };
 
 // Per-session memo: once we've seen Input.insertText fail on a session,

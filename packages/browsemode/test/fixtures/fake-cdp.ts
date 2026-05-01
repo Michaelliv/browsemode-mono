@@ -22,7 +22,12 @@ export class FakeCDP {
     this.handlers[method] = fn;
   }
 
-  async send(method: string, params: any = {}, sessionId?: string, _opts?: any) {
+  async send(
+    method: string,
+    params: any = {},
+    sessionId?: string,
+    _opts?: any,
+  ) {
     this.calls.push({ method, params, sessionId });
     const h = this.handlers[method];
     if (!h) {
@@ -50,7 +55,9 @@ export class FakeCDP {
 
   /** Test helper: deliver an event to subscribers. */
   emit(event: string, params: any, sessionId?: string) {
-    this.listeners.get(event)?.forEach((fn) => fn(params, sessionId));
+    const subs = this.listeners.get(event);
+    if (!subs) return;
+    for (const fn of subs) fn(params, sessionId);
   }
 
   close() {

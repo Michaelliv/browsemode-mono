@@ -1,49 +1,32 @@
-# browsemode
+# 🦾 browsemode
 
-> Code mode for the web. The page becomes a typed JS surface; agents drive it from a QuickJS sandbox over CDP.
+**Code mode for the web.** Drive a real browser by writing typed JavaScript that addresses elements by name, not by selector or pixel coordinate.
 
-`browsemode` turns any live web page into a named-element API. Instead of writing CSS selectors and waiting for things, you call `page.signInButton.click()`, `page.emailInput.fill("…")`, `page.waitFor({ stable: { forMs: 2000 } })`. An LLM agent writes one short script and the framework handles the rest.
-
-It works with **obscura** (a Rust-based headless browser) or any local **Chrome / Chromium / Brave / Edge / Arc** — auto-falling back when the primary wedges.
-
-This repo is a workspace containing the SDK + CLI and a pi extension that wraps it.
-
-## Packages
-
-| Package | What it is |
-|---|---|
-| [`browsemode`](packages/browsemode) | The SDK + CLI. `import { Browsemode } from "browsemode"` or `npx browsemode <command>`. |
-| [`pi-browse`](packages/pi-browse) | Pi extension that exposes browsemode as 6 tools (`browse_open`, `browse_scan`, `browse_dispatch`, `browse_exec`, `browse_read`, `browse_close`). |
-
-## Install
-
-```bash
-bun install
+```ts
+await browser.exec(`
+  await page.goto("https://news.ycombinator.com");
+  await page.searchInput.fill("rust");
+  await page.searchSubmit.click();
+  return await page.list();
+`);
 ```
 
-The repo uses Bun workspaces. Both packages share `node_modules` and the SDK is consumed by `pi-browse` via `workspace:*`.
+That code runs against a live Chrome (or obscura, Brave, Edge, Arc) over CDP. The agent never writes selectors. It never waits manually. It never sees pixels.
 
-## Quick start (CLI)
+## Why
+
+Most browser tools for agents fall into one of two camps:
+
+- **Selector-based frameworks** (Playwright, Selenium, Puppeteer) require fragile CSS or XPath. One DOM rename and the script breaks.
+- **High-level agents** (browser-use, Stagehand `agent`) are autonomous loops that decide every click. They are unpredictable in production and burn tokens on each step.
+
+browsemode sits between the two. The page is scanned into a **typed catalog of named elements**, fed to the model as part of its scratchpad, and the model writes one short script. The script runs in a QuickJS sandbox with the same `page` API a TypeScript caller would use. One reasoning step, many actions, deterministic dispatch.
+
+## Quickstart
 
 ```bash
-# Doctor — verify your setup
-bun run packages/browsemode/src/cli/main.ts doctor
-
-# Read a page (no browser needed)
-bun run packages/browsemode/src/cli/main.ts read https://example.com
-
-# Open a browser, navigate, scan, exec
-bun run packages/browsemode/src/cli/main.ts browser open --id research --url https://github.com
-bun run packages/browsemode/src/cli/main.ts scan --browser research
-bun run packages/browsemode/src/cli/main.ts exec --browser research \
-  'return await page.find("login")'
-
-# Multi-browser
-bun run packages/browsemode/src/cli/main.ts browser open --id scratch
-bun run packages/browsemode/src/cli/main.ts browser list
+bun add browsemode
 ```
-
-## Quick start (SDK)
 
 ```ts
 import { Browsemode } from "browsemode";
@@ -54,19 +37,78 @@ await browser.scan();
 
 await browser.click("signInButton");
 await browser.fill("emailInput", "user@example.com");
-await browser.exec(`
+
+const result = await browser.exec(`
   await page.signInButton.click();
+  await page.waitFor({ stable: { forMs: 1000 } });
   return await page.title();
 `);
 
-await browser.detach();   // keep tabs alive, snapshot for next session
-// later in another process:
-const same = await Browsemode.restore("research");
+await browser.detach();
 ```
+
+`browser.exec(code)` is the agent path. The string body runs inside a QuickJS sandbox. Every `page.*` call funnels back through the same `dispatch(path, args)` entry point that the TS sugar methods use, so behavior is identical.
+
+## CLI
+
+`browsemode` ships a CLI for direct use and as a transparent way to drive the SDK from any agent that can shell out:
+
+```
+$ browsemode read https://example.com           # URL to markdown, no browser needed
+$ browsemode browser open --id research --url https://github.com
+$ browsemode scan --browser research            # list every interactable element
+$ browsemode exec --browser research 'return await page.find("login")'
+$ browsemode cookies dump --domain github.com   # read Chrome cookies + decrypt
+$ browsemode browser list                       # every saved browser
+$ browsemode doctor                             # diagnose your setup
+```
+
+Every command supports `--json` for stable scripted output and `--quiet` for pipelines. Errors point at the next command to run.
+
+## Features
+
+**Named elements, not selectors.** A scan produces `{ name: "signInButton", kind: "button", text: "Sign in", ... }` for every interactable on the page. The names survive most DOM rewrites because they're derived from labels, ARIA, placeholder text, and surrounding context.
+
+**Multi-browser by id.** Every `Browser` has an id. State (target ids, active tab, cookies) lives at `<cacheDir>/browsers/<id>.json`. `Browsemode.restore("research")` reattaches across processes:
+
+```ts
+const a = await Browsemode.connect({ id: "research" });
+await a.detach();                                // keep the live browser, save state
+const b = await Browsemode.restore("research");  // later, in another process
+```
+
+**Auto-fallback when the primary wedges.** Configure obscura as the primary and Chrome as the fallback. If the primary fails to settle within the timeout, browsemode spawns the managed Chrome and retries. The whole flow runs on either backend without code changes.
+
+**No screenshots, no vision models.** Pages convert to markdown via [markit](https://github.com/Michaelliv/markit) when the agent needs to read content. This is fast, deterministic, and costs near zero tokens compared to image input.
+
+**Iframe support.** OOPIFs are auto-discovered and attached on every scan. Elements inside iframes appear in the same flat catalog, addressable by the same names.
+
+**Cookie sync.** Read your real Chrome's cookies (SQLite + macOS Keychain) and inject them into a browsemode-managed browser. Useful for quickly priming a session without scripted login.
+
+**One script, one reasoning step.** The QuickJS sandbox lets an agent write five actions, three waits, and a return value as one body. Compare to MCP-style tools where each click is a separate model round trip.
 
 ## Configuration
 
-Every knob is configurable via env or `Browsemode.configure({...})`. Highlights for Docker:
+Every knob is a `BROWSEMODE_*` env var or a `Browsemode.configure({...})` call. The 15 most-used:
+
+| Variable | Meaning |
+|---|---|
+| `BROWSEMODE_CACHE_DIR` | where snapshots live |
+| `BROWSEMODE_DEFAULT_BROWSER_ID` | id used when none is passed |
+| `BROWSEMODE_CHROME_PATH` | explicit Chrome binary (overrides auto-detection) |
+| `BROWSEMODE_CHROME_PORT` | port for the managed Chrome |
+| `BROWSEMODE_CHROME_ARGS` | extra Chrome flags (comma-separated) |
+| `BROWSEMODE_SETTLE_MS` | how long to wait after a navigation |
+| `BROWSEMODE_CDP_TIMEOUT_MS` | max time for any CDP call |
+| `BROWSEMODE_PROBE_TIMEOUT_MS` | max time to verify a browser is alive |
+| `BROWSEMODE_NAV_TIMEOUT_MS` | navigation timeout |
+| `BROWSEMODE_NO_SHIM` | disable the obscura DOM shim |
+| `BROWSEMODE_NO_STEALTH` | disable headless-detection patches |
+| `BROWSEMODE_DEBUG` | verbose bus events to stderr |
+
+Run `browsemode config show` for the full list and resolved values.
+
+For Docker:
 
 ```dockerfile
 ENV BROWSEMODE_CACHE_DIR=/data/browsemode
@@ -75,28 +117,49 @@ ENV BROWSEMODE_CHROME_ARGS=--no-sandbox,--disable-dev-shm-usage
 ENV BROWSEMODE_DEFAULT_BROWSER_ID=container-1
 ```
 
-Run `browsemode config show` to see the resolved values.
+## How it compares
 
-## Architecture
+| | browsemode | browser-use | Stagehand | Playwright MCP |
+|---|---|---|---|---|
+| Element addressing | named (`page.signInButton`) | numeric index (`click 0`) | natural language (`act("click sign in")`) | accessibility refs (`ref=e3`) |
+| Reasoning per task | one script | many tool calls | many primitives | many tool calls |
+| Driver | direct CDP | direct CDP | Playwright | Playwright |
+| Fallback browser | obscura, Chrome, Brave, Edge, Arc | Chromium | Chromium / cloud | Chromium / Firefox / WebKit |
+| Vision | markdown via markit | screenshots | optional | accessibility snapshots |
+| Sandbox | QuickJS | none | none | none |
+| Persistence | id-keyed snapshots | session dir | profile dir | profile dir |
 
-Three layers, top to bottom:
+This is not a "better than" claim. The right tool depends on the workload. browsemode is built for agents that already speak code well and want a low-token, deterministic surface where one block of JS replaces a chain of tool calls.
 
-- **`Browser`** — owns the CDP socket + a map of `Page`s. Page-method passthrough (`browser.click(...)` routes to `activePage`).
-- **`Page`** — the typed surface over one tab. Single-entry `dispatch(path, args)` for both TS callers and the QuickJS sandbox; verb tables in `page/verbs/{page,element,keyboard}.ts`.
-- **`Sandbox`** — QuickJS runtime per `exec` call; the `page` proxy funnels every call back through `Page.dispatch`.
+## Repo layout
 
-Multi-instance: every `Browser` has an `id`. Snapshots live at `<cacheDir>/browsers/<id>.json`. `Browsemode.restore("research")` reattaches.
+This is a Bun workspace monorepo:
+
+```
+packages/browsemode/    SDK + CLI (this is what most users want)
+packages/pi-browse/     pi extension wrapping the SDK as 6 agent tools
+```
+
+The `pi-browse` package is consumed via `workspace:*` and exposes browsemode through the [pi](https://github.com/Anthropic/pi) extension protocol.
 
 ## Development
 
 ```bash
-bun test                      # all packages
-bun run typecheck             # tsc --noEmit, both packages
-bun run lint                  # biome
+bun install
+bun test                # 174 tests across both packages
+bun run typecheck       # tsc --noEmit
+bun run lint            # biome check
+bun run packages/browsemode/src/cli/main.ts --help
 ```
 
-CI runs `bun test` + `bun run typecheck` on every push.
+CI runs tests, typecheck, and lint on every push.
+
+For agents working in this repo, see [AGENTS.md](AGENTS.md) for architecture, conventions, and how to add new verbs and CLI commands.
+
+## Status
+
+Early. The SDK is stable enough to drive real flows; the CLI is shipping. Anti-bot defenses (Cloudflare TLS fingerprinting, canvas-based UIs) are known gaps. See the issue tracker.
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+MIT. See [LICENSE](LICENSE).

@@ -14,7 +14,7 @@ import { sendKey, typeText } from "./keyboard.js";
 export type ElementVerbHandler = (
   session: Session,
   el: ElementInfo,
-  args: unknown
+  args: unknown,
 ) => Promise<unknown>;
 
 /**
@@ -77,8 +77,7 @@ export const ELEMENT_VERBS: Record<string, ElementVerbHandler> = {
   value: async (s, el) => s.evalString(`(${find(el)})?.value ?? ''`),
 
   fill: async (s, el, args) => {
-    const text =
-      typeof args === "string" ? args : (args as any)?.value ?? "";
+    const text = typeof args === "string" ? args : ((args as any)?.value ?? "");
     // Focus + clear via the prototype's native value setter so React's
     // value tracker sees the change.
     await s.evalJSON(`(() => {
@@ -147,7 +146,7 @@ export const ELEMENT_VERBS: Record<string, ElementVerbHandler> = {
 
   // Like fill but doesn't clear first. Simulates real typing.
   type: async (s, el, args) => {
-    const text = typeof args === "string" ? args : (args as any)?.text ?? "";
+    const text = typeof args === "string" ? args : ((args as any)?.text ?? "");
     await s.evalJSON(`(${find(el)})?.focus?.()`);
     await typeText(s, text);
     return { ok: true };
@@ -203,8 +202,7 @@ export const ELEMENT_VERBS: Record<string, ElementVerbHandler> = {
     })()`),
 
   choose: async (s, el, args) => {
-    const v =
-      typeof args === "string" ? args : (args as any)?.value ?? "";
+    const v = typeof args === "string" ? args : ((args as any)?.value ?? "");
     return s.evalJSON(`(() => {
       const el = (${find(el)});
       if (!el) throw new Error('Element gone');
@@ -246,6 +244,6 @@ export function assertElementVerb(el: ElementInfo, verb: string): void {
   if (el.verbs.includes(verb)) return;
   throw new Error(
     `${el.name}: verb '${verb}' not supported. Available: ${el.verbs.join(", ")}, ` +
-      `${[...UNIVERSAL_ELEMENT_VERBS].join(", ")}`
+      `${[...UNIVERSAL_ELEMENT_VERBS].join(", ")}`,
   );
 }

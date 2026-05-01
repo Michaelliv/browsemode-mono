@@ -8,8 +8,8 @@
 //
 // This is the heart of what makes the CLI's `--browser <id>` flag work.
 
-import { Browsemode } from "../index.js";
 import type { Browser } from "../browser/browser.js";
+import { Browsemode } from "../index.js";
 import type { GlobalFlags } from "./flags.js";
 
 export interface EnsureOpts extends GlobalFlags {
@@ -25,7 +25,7 @@ export interface EnsureOpts extends GlobalFlags {
  * so callers don't need to subscribe.
  */
 export async function ensureBrowser(
-  flags: EnsureOpts
+  flags: EnsureOpts,
 ): Promise<{ browser: Browser; opened: boolean; fellBack: boolean }> {
   const id = flags.browser ?? Browsemode.config().defaultBrowserId;
 

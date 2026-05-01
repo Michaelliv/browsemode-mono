@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { findChrome, chromeStatus } from "../src/browser/chrome.js";
+import { chromeStatus, findChrome } from "../src/browser/chrome.js";
 
 describe("findChrome", () => {
   it("returns either a string path or null without throwing", () => {

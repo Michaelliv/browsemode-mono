@@ -66,7 +66,7 @@ export class CDP {
     method: string,
     params: any = {},
     sessionId?: string,
-    opts: CdpSendOpts = {}
+    opts: CdpSendOpts = {},
   ): Promise<T> {
     if (this._closed) return Promise.reject(new Error("CDP socket closed"));
     const id = this.nextId++;

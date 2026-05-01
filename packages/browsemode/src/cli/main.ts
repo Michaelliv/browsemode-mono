@@ -35,7 +35,7 @@ const program = new Command();
 program
   .name("browsemode")
   .description(
-    "Code mode for the web. Drive a real browser by writing typed JS that addresses elements by name."
+    "Code mode for the web. Drive a real browser by writing typed JS that addresses elements by name.",
   )
   .version(VERSION, "-v, --version")
   // Globals available on every subcommand via `cmd.optsWithGlobals()`.
@@ -43,11 +43,7 @@ program
   .option("--host <host>", "CDP host", "localhost")
   .option("--port <port>", "CDP port", "9222")
   .option("--cache-dir <path>", "override cache directory")
-  .option(
-    "--fallback <mode>",
-    "wedge handling: auto | chrome | off",
-    "auto"
-  )
+  .option("--fallback <mode>", "wedge handling: auto | chrome | off", "auto")
   .option("--json", "emit JSON output")
   .option("-q, --quiet", "suppress non-essential output")
   .option("--no-color", "disable color")
@@ -69,7 +65,7 @@ Configuration via env (full list: https://github.com/Michaelliv/browsemode):
   BROWSEMODE_CHROME_PATH            explicit Chrome binary
   BROWSEMODE_CHROME_ARGS            extra flags (comma-separated)
   BROWSEMODE_DEBUG=1                verbose bus events to stderr
-`
+`,
   );
 
 // ── PAGE commands ──
@@ -190,7 +186,11 @@ cookies
   .action(async (_local, cmd: Command) => {
     const flags = parseGlobalFlags(cmd.optsWithGlobals());
     const local = cmd.opts() as { domain?: string; profile?: string };
-    await cookiesDump({ ...flags, domain: local.domain, profile: local.profile });
+    await cookiesDump({
+      ...flags,
+      domain: local.domain,
+      profile: local.profile,
+    });
   });
 
 cookies
@@ -240,17 +240,17 @@ if (!process.env.BROWSEMODE_DEBUG) {
       switch (e.kind) {
         case "fallback.triggered":
           process.stderr.write(
-            `  ↳ fallback: ${e.from} → ${e.to} (${e.reasons.join("; ")})\n`
+            `  ↳ fallback: ${e.from} → ${e.to} (${e.reasons.join("; ")})\n`,
           );
           break;
         case "fallback.failed":
           process.stderr.write(
-            `  ↳ fallback also missed: ${e.reasons.join("; ")}\n`
+            `  ↳ fallback also missed: ${e.reasons.join("; ")}\n`,
           );
           break;
         case "nav.timeout":
           process.stderr.write(
-            `  ↳ navigate timeout (${e.timeoutMs}ms) — proceeding\n`
+            `  ↳ navigate timeout (${e.timeoutMs}ms) — proceeding\n`,
           );
           break;
       }
@@ -263,7 +263,7 @@ if (!process.env.BROWSEMODE_DEBUG) {
 if (process.argv.length <= 2) {
   // No-args behavior per cli-design: short summary + an example, not full help.
   process.stdout.write(
-    `browsemode — code mode for the web\n\nUsage: browsemode <command> [options]\n\nCommon commands:\n  exec      Run JS against a live page\n  scan      Print available elements\n  read      URL → markdown (no browser)\n  browser   Open / list / close browsers\n  doctor    Diagnose your setup\n\nExample:\n  $ browsemode read https://example.com\n\nFor full help:\n  $ browsemode --help\n`
+    `browsemode — code mode for the web\n\nUsage: browsemode <command> [options]\n\nCommon commands:\n  exec      Run JS against a live page\n  scan      Print available elements\n  read      URL → markdown (no browser)\n  browser   Open / list / close browsers\n  doctor    Diagnose your setup\n\nExample:\n  $ browsemode read https://example.com\n\nFor full help:\n  $ browsemode --help\n`,
   );
   process.exit(0);
 }

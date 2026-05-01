@@ -43,10 +43,14 @@ describe("Session", () => {
   it("evalJSON throws when exceptionDetails is set", async () => {
     const cdp = fakeCdp();
     cdp.setNextResult({
-      exceptionDetails: { exception: { description: "ReferenceError: x not defined" } },
+      exceptionDetails: {
+        exception: { description: "ReferenceError: x not defined" },
+      },
     });
     const s = new Session(cdp, "S1");
-    await expect(s.evalJSON("x")).rejects.toThrow(/x not defined|ReferenceError/);
+    await expect(s.evalJSON("x")).rejects.toThrow(
+      /x not defined|ReferenceError/,
+    );
   });
 
   it("evalString coerces non-strings to a string", async () => {
@@ -67,6 +71,9 @@ describe("Session", () => {
     const cdp = fakeCdp();
     const s = new Session(cdp, "SX");
     await s.send("Page.reload");
-    expect(cdp.calls[0]).toMatchObject({ method: "Page.reload", sessionId: "SX" });
+    expect(cdp.calls[0]).toMatchObject({
+      method: "Page.reload",
+      sessionId: "SX",
+    });
   });
 });

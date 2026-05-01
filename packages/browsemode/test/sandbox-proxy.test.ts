@@ -5,13 +5,13 @@ const VERBS = ["goto", "list", "find", "waitFor"];
 
 describe("buildSandboxSource", () => {
   it("wraps a top-level statement body in an async IIFE", () => {
-    const src = buildSandboxSource('return await page.list();', VERBS);
+    const src = buildSandboxSource("return await page.list();", VERBS);
     expect(src).toContain("(async () => {");
     expect(src).toContain("return await page.list();");
   });
 
   it("detects an arrow-function body and calls it", () => {
-    const src = buildSandboxSource('async () => 1', VERBS);
+    const src = buildSandboxSource("async () => 1", VERBS);
     expect(src).toContain("async () => 1");
     expect(src).toContain("__fn");
   });

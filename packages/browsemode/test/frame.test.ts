@@ -3,15 +3,17 @@
 
 import { describe, expect, it } from "bun:test";
 import { Bus } from "../src/bus.js";
-import { refreshFrames } from "../src/page/frame.js";
 import { Session } from "../src/cdp/session.js";
-import { FakeCDP, asCdp } from "./fixtures/fake-cdp.js";
+import { refreshFrames } from "../src/page/frame.js";
+import { asCdp, FakeCDP } from "./fixtures/fake-cdp.js";
 
 function setup(targets: any[], existing: Map<string, any> = new Map()) {
   const bus = new Bus();
   const cdp = new FakeCDP({
     "Target.getTargets": () => ({ targetInfos: targets }),
-    "Target.attachToTarget": (params: any) => ({ sessionId: `S-${params.targetId}` }),
+    "Target.attachToTarget": (params: any) => ({
+      sessionId: `S-${params.targetId}`,
+    }),
     "Page.addScriptToEvaluateOnNewDocument": () => ({ identifier: "x" }),
   });
   const browser = {
@@ -22,7 +24,11 @@ function setup(targets: any[], existing: Map<string, any> = new Map()) {
   } as any;
   const page = {
     iframes: existing,
-    mainFrame: { targetId: "MAIN", url: "https://parent.com", session: new Session(asCdp(cdp), "MAIN") },
+    mainFrame: {
+      targetId: "MAIN",
+      url: "https://parent.com",
+      session: new Session(asCdp(cdp), "MAIN"),
+    },
     browser,
   } as any;
   return { bus, cdp, browser, page };
@@ -43,11 +49,18 @@ describe("refreshFrames", () => {
 
   it("does not re-attach iframes already in the map", async () => {
     const existing = new Map<string, any>([
-      ["F1", { targetId: "F1", session: new Session({} as any, "PRE-EXISTING-S"), url: "u" }],
+      [
+        "F1",
+        {
+          targetId: "F1",
+          session: new Session({} as any, "PRE-EXISTING-S"),
+          url: "u",
+        },
+      ],
     ]);
     const { cdp, page } = setup(
       [{ type: "iframe", targetId: "F1", url: "u" }],
-      existing
+      existing,
     );
     await refreshFrames(page.browser, page);
     expect(cdp.callsFor("Target.attachToTarget")).toHaveLength(0);
@@ -55,7 +68,10 @@ describe("refreshFrames", () => {
 
   it("prunes frames whose targets disappeared", async () => {
     const existing = new Map<string, any>([
-      ["F-OLD", { targetId: "F-OLD", session: new Session({} as any, "S"), url: "u" }],
+      [
+        "F-OLD",
+        { targetId: "F-OLD", session: new Session({} as any, "S"), url: "u" },
+      ],
     ]);
     const { page } = setup([], existing);
     await refreshFrames(page.browser, page);
@@ -63,9 +79,7 @@ describe("refreshFrames", () => {
   });
 
   it("registers the shim + stealth scripts on each new iframe session", async () => {
-    const { cdp, page } = setup([
-      { type: "iframe", targetId: "F1", url: "u" },
-    ]);
+    const { cdp, page } = setup([{ type: "iframe", targetId: "F1", url: "u" }]);
     await refreshFrames(page.browser, page);
     const preloads = cdp.callsFor("Page.addScriptToEvaluateOnNewDocument");
     // At least two: shim + stealth.
@@ -81,13 +95,19 @@ describe("refreshFrames", () => {
     bus.on("iframe.attached", (e) => events.push(e));
     await refreshFrames(page.browser, page);
     expect(events).toHaveLength(1);
-    expect(events[0]).toMatchObject({ kind: "iframe.attached", targetId: "F1" });
+    expect(events[0]).toMatchObject({
+      kind: "iframe.attached",
+      targetId: "F1",
+    });
   });
 
   it("emits iframe.detached when pruning", async () => {
     const events: any[] = [];
     const existing = new Map<string, any>([
-      ["F-OLD", { targetId: "F-OLD", session: new Session({} as any, "S"), url: "u" }],
+      [
+        "F-OLD",
+        { targetId: "F-OLD", session: new Session({} as any, "S"), url: "u" },
+      ],
     ]);
     const { page, bus } = setup([], existing);
     bus.on("iframe.detached", (e) => events.push(e));

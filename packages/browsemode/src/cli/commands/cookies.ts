@@ -42,7 +42,7 @@ export async function cookiesDump(flags: CookiesDumpOpts): Promise<void> {
           "first time? macOS will prompt to read 'Chrome Safe Storage' from Keychain.",
         ],
       },
-      opts
+      opts,
     );
     process.exit(1);
   }
@@ -54,7 +54,7 @@ export async function cookiesDump(flags: CookiesDumpOpts): Promise<void> {
       jsonOut(cookies);
       info(
         `${cookies.length} cookie(s)${flags.domain ? ` matching ${flags.domain}` : ""}`,
-        opts
+        opts,
       );
     },
   });
@@ -65,9 +65,7 @@ export interface CookiesInjectOpts extends GlobalFlags {
   file?: string;
 }
 
-export async function cookiesInject(
-  flags: CookiesInjectOpts
-): Promise<void> {
+export async function cookiesInject(flags: CookiesInjectOpts): Promise<void> {
   applyGlobalFlags(flags);
   const opts = outputOpts(flags);
 
@@ -86,7 +84,7 @@ export async function cookiesInject(
             "browsemode cookies inject --file cookies.json",
           ],
         },
-        opts
+        opts,
       );
       process.exit(2);
     }

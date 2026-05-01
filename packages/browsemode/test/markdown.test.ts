@@ -47,7 +47,7 @@ describe("htmlToMarkdown", () => {
 
   it("converts a simple HTML doc to markdown containing the heading text", async () => {
     const md = await htmlToMarkdown(
-      "<html><body><h1>Hello</h1><p>world</p></body></html>"
+      "<html><body><h1>Hello</h1><p>world</p></body></html>",
     );
     expect(md.toLowerCase()).toContain("hello");
     expect(md.toLowerCase()).toContain("world");
@@ -57,8 +57,11 @@ describe("htmlToMarkdown", () => {
 describe("urlToMarkdown", () => {
   // Network-dependent; gated on env so CI without internet doesn't fail.
   const live = process.env.BROWSEMODE_E2E === "1";
-  it.skipIf(!live)("fetches example.com and returns non-empty markdown", async () => {
-    const r = await urlToMarkdown("https://example.com");
-    expect(r.markdown.length).toBeGreaterThan(0);
-  });
+  it.skipIf(!live)(
+    "fetches example.com and returns non-empty markdown",
+    async () => {
+      const r = await urlToMarkdown("https://example.com");
+      expect(r.markdown.length).toBeGreaterThan(0);
+    },
+  );
 });

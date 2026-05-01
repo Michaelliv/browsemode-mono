@@ -72,8 +72,7 @@ describe("env vars override defaults", () => {
   it("BROWSEMODE_CHROME_PATH + PORT + ARGS", () => {
     process.env.BROWSEMODE_CHROME_PATH = "/usr/bin/chromium";
     process.env.BROWSEMODE_CHROME_PORT = "9445";
-    process.env.BROWSEMODE_CHROME_ARGS =
-      "--no-sandbox,--disable-dev-shm-usage";
+    process.env.BROWSEMODE_CHROME_ARGS = "--no-sandbox,--disable-dev-shm-usage";
     resetConfig();
     const c = getConfig().chrome;
     expect(c.path).toBe("/usr/bin/chromium");

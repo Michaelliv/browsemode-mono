@@ -22,13 +22,13 @@ import { CDP } from "../cdp/client.js";
 import { Session } from "../cdp/session.js";
 import { getConfig, randomBrowserId } from "../config.js";
 import {
-  type PersistedBrowser,
   clearBrowser,
+  type PersistedBrowser,
   pathForBrowser,
   saveBrowser,
 } from "../orchestration/persistence.js";
-import { Page } from "../page/page.js";
 import type { MarkdownSection } from "../page/markdown.js";
+import { Page } from "../page/page.js";
 import { SHIM_SCRIPT } from "../page/shim.js";
 import { STEALTH_SCRIPT } from "../page/stealth.js";
 import type {
@@ -118,12 +118,12 @@ export class Browser {
     }).catch((e: any) => {
       throw new Error(
         `Couldn't reach CDP at http://${host}:${port}/json/version: ${e?.message ?? e}. ` +
-          "Is the browser running and responsive?"
+          "Is the browser running and responsive?",
       );
     });
     if (!versionRes.ok) {
       throw new Error(
-        `CDP probe at http://${host}:${port}/json/version returned ${versionRes.status}`
+        `CDP probe at http://${host}:${port}/json/version returned ${versionRes.status}`,
       );
     }
     const version = (await versionRes.json()) as {
@@ -136,7 +136,8 @@ export class Browser {
     b.product = version.Browser ?? "";
     b.isObscura = /obscura/i.test(b.product);
     b.shimEnabled =
-      opts.shim ?? (cfg.defaults.shim === "auto" ? b.isObscura : cfg.defaults.shim);
+      opts.shim ??
+      (cfg.defaults.shim === "auto" ? b.isObscura : cfg.defaults.shim);
     b.stealthEnabled = opts.stealth ?? cfg.defaults.stealth;
     b.bus = opts.bus ?? new Bus();
     b.settleMs = opts.settleMs ?? cfg.defaults.settleMs;
@@ -158,11 +159,11 @@ export class Browser {
     const cfg = getConfig();
     const { targetId } = await this.cdp.send<{ targetId: string }>(
       "Target.createTarget",
-      { url: "about:blank" }
+      { url: "about:blank" },
     );
     const { sessionId } = await this.cdp.send<{ sessionId: string }>(
       "Target.attachToTarget",
-      { targetId, flatten: true }
+      { targetId, flatten: true },
     );
     const session = new Session(this.cdp, sessionId);
 
@@ -233,7 +234,7 @@ export class Browser {
   get activePage(): Page {
     if (!this._activeTargetId) {
       throw new Error(
-        `browser '${this.id}' has no open pages — call browser.newPage() first`
+        `browser '${this.id}' has no open pages — call browser.newPage() first`,
       );
     }
     const p = this._pages.get(this._activeTargetId);
@@ -244,7 +245,7 @@ export class Browser {
   switchTo(targetId: string): void {
     if (!this._pages.has(targetId)) {
       throw new Error(
-        `switchTo: unknown id '${targetId}'. Open: ${[...this._pages.keys()].join(", ")}`
+        `switchTo: unknown id '${targetId}'. Open: ${[...this._pages.keys()].join(", ")}`,
       );
     }
     this._activeTargetId = targetId;
@@ -281,9 +282,7 @@ export class Browser {
         url: p.url,
         title: p.title,
       })),
-      lastScan: this._activeTargetId
-        ? this.activePage.lastScan
-        : undefined,
+      lastScan: this._activeTargetId ? this.activePage.lastScan : undefined,
     };
     saveBrowser(state);
     this.bus.emit({ kind: "session.persisted", path: pathForBrowser(this.id) });
@@ -323,17 +322,17 @@ export class Browser {
     // context.
     const { targetId } = await this.cdp.send<{ targetId: string }>(
       "Target.createTarget",
-      { url: "about:blank" }
+      { url: "about:blank" },
     );
     const { sessionId } = await this.cdp.send<{ sessionId: string }>(
       "Target.attachToTarget",
-      { targetId, flatten: true }
+      { targetId, flatten: true },
     );
     try {
       await this.cdp.send(
         "Network.setCookies",
         { cookies: toCdpCookies(cookies) },
-        sessionId
+        sessionId,
       );
     } finally {
       await this.cdp
@@ -397,7 +396,7 @@ export class Browser {
     return this.activePage.sections();
   }
   async rows(
-    collection: string
+    collection: string,
   ): Promise<Array<{ row: number; markdown: string }>> {
     return this.activePage.rows(collection);
   }
@@ -473,7 +472,7 @@ export class Browser {
       }
       default:
         throw new Error(
-          `tabs: unknown verb '${verb}'. Available: list, active, open, switch, close`
+          `tabs: unknown verb '${verb}'. Available: list, active, open, switch, close`,
         );
     }
   }

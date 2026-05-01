@@ -15,7 +15,7 @@ import type { Expectation, ExpectResult, ScanResult } from "../types.js";
  */
 export function meetsExpectation(
   scan: ScanResult,
-  expect: Expectation
+  expect: Expectation,
 ): ExpectResult {
   const reasons: string[] = [];
   const els = scan.elements;
@@ -29,18 +29,18 @@ export function meetsExpectation(
     const hit = els.find(
       (e) =>
         e.name.toLowerCase().includes(lower) ||
-        e.text.toLowerCase().includes(lower)
+        e.text.toLowerCase().includes(lower),
     );
     if (!hit) reasons.push(`no element matches '${expect}'`);
   } else {
     if (expect.minElements != null && els.length < expect.minElements) {
       reasons.push(
-        `got ${els.length} elements, expected ≥${expect.minElements}`
+        `got ${els.length} elements, expected ≥${expect.minElements}`,
       );
     }
     if (expect.hasInputs != null) {
       const c = els.filter(
-        (e) => e.kind === "text" || e.kind === "textarea"
+        (e) => e.kind === "text" || e.kind === "textarea",
       ).length;
       if (c < expect.hasInputs) {
         reasons.push(`got ${c} inputs, expected ≥${expect.hasInputs}`);
@@ -63,7 +63,7 @@ export function meetsExpectation(
       const hit = els.find(
         (e) =>
           e.name.toLowerCase().includes(lower) ||
-          e.text.toLowerCase().includes(lower)
+          e.text.toLowerCase().includes(lower),
       );
       if (!hit) reasons.push(`no element matches find='${expect.find}'`);
     }
@@ -71,7 +71,7 @@ export function meetsExpectation(
       const re = new RegExp(expect.titleMatches, "i");
       if (!re.test(scan.title)) {
         reasons.push(
-          `title '${scan.title}' doesn't match /${expect.titleMatches}/i`
+          `title '${scan.title}' doesn't match /${expect.titleMatches}/i`,
         );
       }
     }
@@ -98,7 +98,8 @@ export function parseExpectationSpec(spec: string): Expectation {
     else if (k === "inputs") out.hasInputs = parseInt(v, 10);
     else if (k === "buttons") out.hasButtons = parseInt(v, 10);
     else if (k === "links") out.hasLinks = parseInt(v, 10);
-    else if (k === "min" || k === "minElements") out.minElements = parseInt(v, 10);
+    else if (k === "min" || k === "minElements")
+      out.minElements = parseInt(v, 10);
   }
   // Bare string with no `key:value` pairs → treat as a find query.
   if (Object.keys(out).length === 0 && spec.trim()) return spec.trim();

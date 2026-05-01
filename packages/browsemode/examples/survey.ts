@@ -32,15 +32,27 @@ const SITES: Probe[] = [
     expectMin: 1,
     expectInputs: true,
   },
-  { url: "https://www.theverge.com", category: "multi-bundle-news", expectMin: 50 },
-  { url: "https://www.nytimes.com", category: "multi-bundle-news", expectMin: 50 },
+  {
+    url: "https://www.theverge.com",
+    category: "multi-bundle-news",
+    expectMin: 50,
+  },
+  {
+    url: "https://www.nytimes.com",
+    category: "multi-bundle-news",
+    expectMin: 50,
+  },
   {
     url: "https://weather.com",
     category: "multi-bundle-ads",
     expectMin: 50,
     expectInputs: true,
   },
-  { url: "https://arstechnica.com", category: "multi-bundle-ads", expectMin: 30 },
+  {
+    url: "https://arstechnica.com",
+    category: "multi-bundle-ads",
+    expectMin: 30,
+  },
   {
     url: "https://github.com/h4ckf0r0day/obscura",
     category: "github-spa",
@@ -73,7 +85,7 @@ async function run(probe: Probe, port: number): Promise<Row> {
       await page.wait(3000);
       const scan = await page.scan();
       const inputs = scan.elements.filter(
-        (e) => e.kind === "text" || e.kind === "textarea"
+        (e) => e.kind === "text" || e.kind === "textarea",
       );
       const total = scan.elements.length;
       const hasSearch =
@@ -112,7 +124,7 @@ async function run(probe: Probe, port: number): Promise<Row> {
 
 const port = Number.parseInt(process.env.PORT ?? "9333", 10);
 process.stderr.write(
-  `Surveying ${SITES.length} sites against the browser on :${port}\n\n`
+  `Surveying ${SITES.length} sites against the browser on :${port}\n\n`,
 );
 
 const rows: Row[] = [];
@@ -121,17 +133,19 @@ for (const probe of SITES) {
   const r = await run(probe, port);
   rows.push(r);
   process.stderr.write(
-    `${r.ok ? "✓" : "✗"} ${r.total}el ${r.inputs}in ${r.ms}ms${r.err ? ` (${r.err})` : ""}\n`
+    `${r.ok ? "✓" : "✗"} ${r.total}el ${r.inputs}in ${r.ms}ms${r.err ? ` (${r.err})` : ""}\n`,
   );
 }
 
 process.stderr.write("\n");
 console.log("\n## Results table\n");
-console.log("| URL | Category | OK | Elements | Inputs | Search? | Time | Note |");
+console.log(
+  "| URL | Category | OK | Elements | Inputs | Search? | Time | Note |",
+);
 console.log("|---|---|---|---:|---:|:-:|---:|---|");
 for (const r of rows) {
   console.log(
-    `| ${r.url} | ${r.category} | ${r.ok ? "✓" : "✗"} | ${r.total} | ${r.inputs} | ${r.hasSearch ? "✓" : "—"} | ${r.ms}ms | ${r.err ?? r.title} |`
+    `| ${r.url} | ${r.category} | ${r.ok ? "✓" : "✗"} | ${r.total} | ${r.inputs} | ${r.hasSearch ? "✓" : "—"} | ${r.ms}ms | ${r.err ?? r.title} |`,
   );
 }
 

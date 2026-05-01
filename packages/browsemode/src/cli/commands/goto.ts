@@ -5,11 +5,19 @@ import { ensureBrowser } from "../browser-handle.js";
 import { EXIT_USER_ERROR } from "../exit-codes.js";
 import type { GlobalFlags } from "../flags.js";
 import { applyGlobalFlags, outputOpts, resolveBrowserId } from "../flags.js";
-import { hint, info, lineOut, nextStep, output, renderError, success } from "../output.js";
+import {
+  hint,
+  info,
+  lineOut,
+  nextStep,
+  output,
+  renderError,
+  success,
+} from "../output.js";
 
 export async function gotoCmd(
   url: string | undefined,
-  flags: GlobalFlags
+  flags: GlobalFlags,
 ): Promise<void> {
   applyGlobalFlags(flags);
   const opts = outputOpts(flags);
@@ -20,7 +28,7 @@ export async function gotoCmd(
         message: "missing URL",
         next: ["browsemode goto https://example.com"],
       },
-      opts
+      opts,
     );
     process.exit(EXIT_USER_ERROR);
   }
@@ -43,7 +51,11 @@ export async function gotoCmd(
     browser.snapshot();
 
     output(opts, {
-      json: () => ({ url: scan.url, title: scan.title, elements: scan.elements.length }),
+      json: () => ({
+        url: scan.url,
+        title: scan.title,
+        elements: scan.elements.length,
+      }),
       quiet: () => lineOut(scan.url),
       human: () => {
         success(`navigated to ${scan.url}`, opts);
@@ -51,7 +63,10 @@ export async function gotoCmd(
         lineOut(`  ${scan.elements.length} interactable element(s)`);
         lineOut("");
         nextStep(`browsemode scan --browser ${id}`, opts);
-        nextStep(`browsemode exec --browser ${id} 'return await page.list()'`, opts);
+        nextStep(
+          `browsemode exec --browser ${id} 'return await page.list()'`,
+          opts,
+        );
       },
     });
   } finally {

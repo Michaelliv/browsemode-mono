@@ -31,9 +31,9 @@ import { refreshFrames } from "./frame.js";
 import type { MarkdownSection } from "./markdown.js";
 import { SCAN_SCRIPT } from "./scanner.js";
 import {
+  assertElementVerb,
   ELEMENT_VERBS,
   NAVIGATING_ELEMENT_VERBS,
-  assertElementVerb,
 } from "./verbs/element.js";
 import { NAVIGATING_PAGE_VERBS, PAGE_VERBS } from "./verbs/page.js";
 
@@ -65,7 +65,7 @@ export class Page {
     browser: Browser,
     targetId: string,
     mainSession: Session,
-    opts: PageOpts = {}
+    opts: PageOpts = {},
   ): Promise<Page> {
     const p = new Page();
     p.browser = browser;
@@ -99,9 +99,12 @@ export class Page {
           if (s === this.mainFrame.session) throw e;
           this.browser.bus.emit({
             kind: "iframe.scan-failed",
-            url: this.iframes.get([...this.iframes.keys()].find(
-              (k) => this.iframes.get(k)?.session === s
-            ) ?? "")?.url ?? "",
+            url:
+              this.iframes.get(
+                [...this.iframes.keys()].find(
+                  (k) => this.iframes.get(k)?.session === s,
+                ) ?? "",
+              )?.url ?? "",
             reason: String(e?.message ?? e),
           });
           return null;
@@ -192,7 +195,7 @@ export class Page {
         throw new Error(
           `Unknown name: '${name}'. ` +
             `Elements: ${elsSample}\u2026 ` +
-            `Collections: ${collsSample || "(none)"}`
+            `Collections: ${collsSample || "(none)"}`,
         );
       }
     } else {
@@ -251,13 +254,16 @@ export class Page {
     return (await this.dispatch("markdown")) as string;
   }
   async read(): Promise<{ markdown: string; title?: string }> {
-    return (await this.dispatch("read")) as { markdown: string; title?: string };
+    return (await this.dispatch("read")) as {
+      markdown: string;
+      title?: string;
+    };
   }
   async sections(): Promise<MarkdownSection[]> {
     return (await this.dispatch("sections")) as MarkdownSection[];
   }
   async rows(
-    collection: string
+    collection: string,
   ): Promise<Array<{ row: number; markdown: string }>> {
     return (await this.dispatch("rows", collection)) as Array<{
       row: number;
@@ -278,7 +284,9 @@ export class Page {
     }>;
   }
   describe(name: string): ElementInfo | undefined {
-    return this.dispatch("describe", name) as unknown as ElementInfo | undefined;
+    return this.dispatch("describe", name) as unknown as
+      | ElementInfo
+      | undefined;
   }
 
   // Element-named sugar.
@@ -314,7 +322,7 @@ function collectionVerb(
   rows: string[][],
   name: string,
   verb: string,
-  args: unknown
+  args: unknown,
 ): unknown {
   switch (verb) {
     case "items":
@@ -324,10 +332,10 @@ function collectionVerb(
     case "flat":
       return rows.flat();
     case "at": {
-      const i = typeof args === "number" ? args : (args as any)?.index ?? 0;
+      const i = typeof args === "number" ? args : ((args as any)?.index ?? 0);
       if (i < 0 || i >= rows.length) {
         throw new Error(
-          `${name}.at(${i}): index out of range (length=${rows.length})`
+          `${name}.at(${i}): index out of range (length=${rows.length})`,
         );
       }
       return rows[i].slice();
@@ -338,7 +346,7 @@ function collectionVerb(
       return rows[rows.length - 1]?.slice();
     default:
       throw new Error(
-        `Collection '${name}': verb '${verb}' not supported. Available: items, flat, length, at, first, last`
+        `Collection '${name}': verb '${verb}' not supported. Available: items, flat, length, at, first, last`,
       );
   }
 }

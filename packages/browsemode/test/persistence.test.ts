@@ -4,10 +4,10 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { configure, resetConfig } from "../src/config.js";
 import {
-  type PersistedBrowser,
   clearBrowser,
   listBrowsers,
   loadBrowser,
+  type PersistedBrowser,
   pathForBrowser,
   saveBrowser,
 } from "../src/orchestration/persistence.js";

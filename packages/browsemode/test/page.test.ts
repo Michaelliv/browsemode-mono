@@ -2,18 +2,21 @@
 // integration. They use a fake CDP/Session so we don't need a real browser.
 
 import { describe, expect, it, mock } from "bun:test";
-import { Browser } from "../src/browser/browser.js";
+import type { Browser } from "../src/browser/browser.js";
 import { Bus } from "../src/bus.js";
 import { Session } from "../src/cdp/session.js";
 import { Page } from "../src/page/page.js";
-import { FakeCDP, asCdp } from "./fixtures/fake-cdp.js";
+import { asCdp, FakeCDP } from "./fixtures/fake-cdp.js";
 
 function makePage() {
   const cdp = new FakeCDP();
   // Runtime.evaluate stub: SCAN_SCRIPT returns a valid (empty) ScanResult
   // shape; everything else (verb expressions) returns undefined value.
   cdp.setHandler("Runtime.evaluate", (params: any) => {
-    if (typeof params.expression === "string" && params.expression.includes("data-browsemode")) {
+    if (
+      typeof params.expression === "string" &&
+      params.expression.includes("data-browsemode")
+    ) {
       return {
         result: {
           value: {
@@ -45,7 +48,10 @@ describe("Page.dispatch routing", () => {
     const { browser } = makePage();
     const page = await constructPage(browser);
     await page.dispatch("tabs.list");
-    expect((browser as any)._dispatchTabs).toHaveBeenCalledWith("list", undefined);
+    expect((browser as any)._dispatchTabs).toHaveBeenCalledWith(
+      "list",
+      undefined,
+    );
   });
 
   it("routes 'verb' (single-segment) to a page verb handler", async () => {
@@ -76,13 +82,17 @@ describe("Page.dispatch routing", () => {
   it("throws on an unknown name with a helpful message", async () => {
     const { browser } = makePage();
     const page = await constructPage(browser);
-    await expect(page.dispatch("nonexistent.click")).rejects.toThrow(/nonexistent|unknown/i);
+    await expect(page.dispatch("nonexistent.click")).rejects.toThrow(
+      /nonexistent|unknown/i,
+    );
   });
 
   it("throws on an unknown page verb with a helpful message", async () => {
     const { browser } = makePage();
     const page = await constructPage(browser);
-    await expect(page.dispatch("totallyMadeUpVerb")).rejects.toThrow(/unknown|verb/i);
+    await expect(page.dispatch("totallyMadeUpVerb")).rejects.toThrow(
+      /unknown|verb/i,
+    );
   });
 
   it("auto-rescans after a navigating element verb", async () => {
@@ -97,7 +107,12 @@ describe("Page.dispatch routing", () => {
       verbs: ["click"],
       selector: "document.querySelector('[data-browsemode=\"el_0\"]')",
     });
-    const scanSpy = mock(async () => ({ url: "x", title: "y", elements: [], collections: {} }));
+    const scanSpy = mock(async () => ({
+      url: "x",
+      title: "y",
+      elements: [],
+      collections: {},
+    }));
     (page as any).scan = scanSpy;
     await page.dispatch("submitButton.click");
     expect(scanSpy).toHaveBeenCalled();
@@ -114,7 +129,12 @@ describe("Page.dispatch routing", () => {
       verbs: ["click", "text", "href"],
       selector: "document.querySelector('[data-browsemode=\"el_0\"]')",
     });
-    const scanSpy = mock(async () => ({ url: "x", title: "y", elements: [], collections: {} }));
+    const scanSpy = mock(async () => ({
+      url: "x",
+      title: "y",
+      elements: [],
+      collections: {},
+    }));
     (page as any).scan = scanSpy;
     await page.dispatch("titleLink.text");
     expect(scanSpy).not.toHaveBeenCalled();
@@ -137,7 +157,10 @@ describe("Page sugar methods funnel through dispatch", () => {
     const dispatchSpy = mock(async () => ({ ok: true }));
     (page as any).dispatch = dispatchSpy;
     await page.fill("emailInput", "user@example.com");
-    expect(dispatchSpy).toHaveBeenCalledWith("emailInput.fill", "user@example.com");
+    expect(dispatchSpy).toHaveBeenCalledWith(
+      "emailInput.fill",
+      "user@example.com",
+    );
   });
 
   it("page.goto() == page.dispatch('goto', { url })", async () => {

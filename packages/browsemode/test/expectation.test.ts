@@ -29,12 +29,18 @@ describe("meetsExpectation", () => {
   });
 
   it("string: matches element name (case-insensitive)", () => {
-    const r = meetsExpectation(scan([E("button", "loginButton", "Sign in")]), "login");
+    const r = meetsExpectation(
+      scan([E("button", "loginButton", "Sign in")]),
+      "login",
+    );
     expect(r.ok).toBe(true);
   });
 
   it("string: matches element text", () => {
-    const r = meetsExpectation(scan([E("link", "x", "Privacy Policy")]), "privacy");
+    const r = meetsExpectation(
+      scan([E("link", "x", "Privacy Policy")]),
+      "privacy",
+    );
     expect(r.ok).toBe(true);
   });
 
@@ -52,29 +58,39 @@ describe("meetsExpectation", () => {
 
   it("object: hasButtons / hasLinks counts respective kinds", () => {
     const els = [E("button"), E("button"), E("link")];
-    expect(meetsExpectation(scan(els), { hasButtons: 2, hasLinks: 1 }).ok).toBe(true);
+    expect(meetsExpectation(scan(els), { hasButtons: 2, hasLinks: 1 }).ok).toBe(
+      true,
+    );
     expect(meetsExpectation(scan(els), { hasButtons: 3 }).ok).toBe(false);
   });
 
   it("object: titleMatches uses regex (case-insensitive)", () => {
-    const r = meetsExpectation(scan([], { title: "GitHub - h4ckf0r0day/obscura" }), {
-      titleMatches: "^github",
-    });
+    const r = meetsExpectation(
+      scan([], { title: "GitHub - h4ckf0r0day/obscura" }),
+      {
+        titleMatches: "^github",
+      },
+    );
     expect(r.ok).toBe(true);
   });
 
   it("object: combined constraints all must hold", () => {
-    const els = [E("text", "searchInput", "Search"), E("button", "goButton", "Go")];
+    const els = [
+      E("text", "searchInput", "Search"),
+      E("button", "goButton", "Go"),
+    ];
     expect(
-      meetsExpectation(scan(els), { hasInputs: 1, find: "search" }).ok
+      meetsExpectation(scan(els), { hasInputs: 1, find: "search" }).ok,
     ).toBe(true);
     expect(
-      meetsExpectation(scan(els), { hasInputs: 5, find: "search" }).ok
+      meetsExpectation(scan(els), { hasInputs: 5, find: "search" }).ok,
     ).toBe(false);
   });
 
   it("object: minElements with collections", () => {
-    expect(meetsExpectation(scan([E("button")]), { minElements: 1 }).ok).toBe(true);
+    expect(meetsExpectation(scan([E("button")]), { minElements: 1 }).ok).toBe(
+      true,
+    );
     expect(meetsExpectation(scan([]), { minElements: 1 }).ok).toBe(false);
   });
 });
@@ -97,7 +113,9 @@ describe("parseExpectationSpec", () => {
   });
 
   it("title:<regex> → titleMatches", () => {
-    expect(parseExpectationSpec("title:^GitHub")).toEqual({ titleMatches: "^GitHub" });
+    expect(parseExpectationSpec("title:^GitHub")).toEqual({
+      titleMatches: "^GitHub",
+    });
   });
 
   it("min:N → minElements", () => {

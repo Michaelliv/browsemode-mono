@@ -10,7 +10,12 @@ export type BusEvent =
   | { kind: "iframe.attached"; targetId: string; url: string }
   | { kind: "iframe.detached"; targetId: string }
   | { kind: "iframe.scan-failed"; url: string; reason: string }
-  | { kind: "scan.complete"; url: string; elementCount: number; iframeCount: number }
+  | {
+      kind: "scan.complete";
+      url: string;
+      elementCount: number;
+      iframeCount: number;
+    }
   | { kind: "nav.timeout"; url: string; waitUntil: string; timeoutMs: number }
   | { kind: "fallback.triggered"; from: string; to: string; reasons: string[] }
   | { kind: "fallback.failed"; reasons: string[] }
@@ -19,13 +24,14 @@ export type BusEvent =
 
 export type BusEventKind = BusEvent["kind"];
 export type BusListener<K extends BusEventKind = BusEventKind> = (
-  event: Extract<BusEvent, { kind: K }>
+  event: Extract<BusEvent, { kind: K }>,
 ) => void;
 
 // Imported lazily-via-helper to dodge the perceived (type-only) circular
 // dependency between bus.ts and config.ts. config imports `type BusEvent`
 // from us; we import its getConfig at module top.
 import { getConfig } from "./config.js";
+
 function configOnEvent(): ((e: BusEvent) => void) | undefined {
   return getConfig().onEvent;
 }

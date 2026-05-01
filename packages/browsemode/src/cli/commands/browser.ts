@@ -1,6 +1,7 @@
 // `browsemode browser <list|open|close|forget|status|launch|stop>`
 // Lifecycle management for the on-disk browsers and the managed Chrome.
 
+import type { Browser } from "../../browser/browser.js";
 import {
   chromeStatus,
   ensureChrome,
@@ -44,7 +45,7 @@ export async function browserList(flags: GlobalFlags): Promise<void> {
       for (const b of browsers) {
         const age = ageLabel(b.ts);
         lineOut(
-          `${b.id.padEnd(20)} ${b.product.padEnd(18)} :${b.port.toString().padEnd(5)} ${b.tabs.length} tab(s)  ${age}`
+          `${b.id.padEnd(20)} ${b.product.padEnd(18)} :${b.port.toString().padEnd(5)} ${b.tabs.length} tab(s)  ${age}`,
         );
       }
     },
@@ -61,8 +62,7 @@ export interface OpenOpts extends GlobalFlags {
 export async function browserOpen(flags: OpenOpts): Promise<void> {
   applyGlobalFlags(flags);
   const opts = outputOpts(flags);
-  const id =
-    flags.id ?? flags.browser ?? Browsemode.config().defaultBrowserId;
+  const id = flags.id ?? flags.browser ?? Browsemode.config().defaultBrowserId;
 
   const { browser, opened, fellBack } = await ensureBrowser({
     ...flags,
@@ -86,9 +86,10 @@ export async function browserOpen(flags: OpenOpts): Promise<void> {
       human: () => {
         success(
           `${opened ? "opened" : "reattached to"} '${browser.id}' on ${browser.product || "primary"}`,
-          opts
+          opts,
         );
-        if (fellBack) hint("primary wedged — fell back to managed Chrome", opts);
+        if (fellBack)
+          hint("primary wedged — fell back to managed Chrome", opts);
         lineOut(`  url:    ${scan.url}`);
         if (scan.title) lineOut(`  title:  ${scan.title}`);
         lineOut(`  elems:  ${scan.elements.length}`);
@@ -96,7 +97,7 @@ export async function browserOpen(flags: OpenOpts): Promise<void> {
         nextStep(`browsemode scan --browser ${browser.id}`, opts);
         nextStep(
           `browsemode exec --browser ${browser.id} 'return await page.list()'`,
-          opts
+          opts,
         );
       },
     });
@@ -114,10 +115,9 @@ export interface CloseOpts extends GlobalFlags {
 export async function browserClose(flags: CloseOpts): Promise<void> {
   applyGlobalFlags(flags);
   const opts = outputOpts(flags);
-  const id =
-    flags.id ?? flags.browser ?? Browsemode.config().defaultBrowserId;
+  const id = flags.id ?? flags.browser ?? Browsemode.config().defaultBrowserId;
 
-  let browser;
+  let browser: Browser;
   try {
     browser = await Browsemode.restore(id);
   } catch (e: any) {
@@ -149,13 +149,13 @@ export interface ForgetOpts extends GlobalFlags {
 export async function browserForget(flags: ForgetOpts): Promise<void> {
   applyGlobalFlags(flags);
   const opts = outputOpts(flags);
-  const id =
-    flags.id ?? flags.browser ?? Browsemode.config().defaultBrowserId;
+  const id = flags.id ?? flags.browser ?? Browsemode.config().defaultBrowserId;
   Browsemode.forgetBrowser(id);
   output(opts, {
     json: () => ({ id, snapshotDropped: true }),
     quiet: () => {},
-    human: () => success(`dropped snapshot for '${id}' (live browser unaffected)`, opts),
+    human: () =>
+      success(`dropped snapshot for '${id}' (live browser unaffected)`, opts),
   });
 }
 
@@ -172,12 +172,9 @@ export async function browserStatus(flags: GlobalFlags): Promise<void> {
     renderError(
       {
         message: `no browser with id '${id}'`,
-        next: [
-          "browsemode browser list",
-          `browsemode browser open --id ${id}`,
-        ],
+        next: ["browsemode browser list", `browsemode browser open --id ${id}`],
       },
-      opts
+      opts,
     );
     process.exit(EXIT_NOT_FOUND);
   }
@@ -211,7 +208,7 @@ export async function browserLaunch(flags: GlobalFlags): Promise<void> {
           "Browsemode.configure({ chrome: { path: '/usr/bin/chromium' } })",
         ],
       },
-      opts
+      opts,
     );
     process.exit(EXIT_USER_ERROR);
   }
@@ -250,7 +247,7 @@ export async function chromeStatusCmd(flags: GlobalFlags): Promise<void> {
       if (status.running) {
         success(
           `managed Chrome running — pid ${status.pid}, port ${status.port}`,
-          opts
+          opts,
         );
       } else {
         info("no managed Chrome running", opts);

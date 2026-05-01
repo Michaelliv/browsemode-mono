@@ -9,7 +9,7 @@ import type { CDP } from "./client.js";
 export class Session {
   constructor(
     readonly cdp: CDP,
-    readonly id: string
+    readonly id: string,
   ) {}
 
   /**
@@ -20,7 +20,7 @@ export class Session {
     const r = await this.cdp.send<any>(
       "Runtime.evaluate",
       { expression, returnByValue: true, awaitPromise: true },
-      this.id
+      this.id,
     );
     if (r?.exceptionDetails) {
       // Surface the page-side stack/description so the caller sees what
@@ -30,7 +30,7 @@ export class Session {
           r.exceptionDetails.exception?.description ??
           r.exceptionDetails.text ??
           "unknown"
-        }`
+        }`,
       );
     }
     return r?.result?.value as T;

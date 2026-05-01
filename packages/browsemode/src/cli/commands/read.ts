@@ -9,7 +9,7 @@ import { lineOut, output, renderError } from "../output.js";
 
 export async function readCmd(
   url: string | undefined,
-  flags: GlobalFlags
+  flags: GlobalFlags,
 ): Promise<void> {
   applyGlobalFlags(flags);
   const opts = outputOpts(flags);
@@ -20,7 +20,7 @@ export async function readCmd(
         message: "missing URL",
         next: ["browsemode read https://example.com"],
       },
-      opts
+      opts,
     );
     process.exit(EXIT_USER_ERROR);
   }

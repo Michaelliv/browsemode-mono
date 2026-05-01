@@ -48,7 +48,8 @@ export class MockSocket {
   /** Test-only: respond to the most recent send with id. */
   reply(result: any, errorMsg?: string) {
     const last = this.sent[this.sent.length - 1];
-    if (!last || typeof last.id !== "number") throw new Error("no pending send");
+    if (!last || typeof last.id !== "number")
+      throw new Error("no pending send");
     if (errorMsg) {
       this.push({ id: last.id, error: { code: -32000, message: errorMsg } });
     } else {

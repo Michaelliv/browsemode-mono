@@ -3,55 +3,38 @@
 // Public SDK surface. Most callers want `Browsemode.connect()` or
 // `Browsemode.openWithFallback()` and a Browser handle.
 
-export { Browser, randomBrowserId } from "./browser/browser.js";
 export type { BrowserOpts, NewPageOpts } from "./browser/browser.js";
-
-export { Page } from "./page/page.js";
-export type { PageOpts } from "./page/page.js";
-
-export { CDP } from "./cdp/client.js";
-export type { CdpEventHandler, CdpSendOpts } from "./cdp/client.js";
-export { Session } from "./cdp/session.js";
-
-export { Sandbox } from "./sandbox/sandbox.js";
-
-export { Bus } from "./bus.js";
-export type { BusEvent, BusEventKind, BusListener } from "./bus.js";
-
-export { configure, getConfig, resetConfig } from "./config.js";
-export type { BrowsemodeConfig, PartialConfig } from "./config.js";
-
+export { Browser, randomBrowserId } from "./browser/browser.js";
+export type { ChromeStatus, EnsureChromeOpts } from "./browser/chrome.js";
 export {
   chromeStatus,
   ensureChrome,
   findChrome,
   stopChrome,
 } from "./browser/chrome.js";
-export type { ChromeStatus, EnsureChromeOpts } from "./browser/chrome.js";
-
+export type { ChromeCookie, ReadCookiesOpts } from "./browser/cookies.js";
 export {
   clearCookieCache,
   readChromeCookies,
   toCdpCookies,
 } from "./browser/cookies.js";
-export type { ChromeCookie, ReadCookiesOpts } from "./browser/cookies.js";
-
-export {
-  extractSections,
-  htmlToMarkdown,
-  urlToMarkdown,
-} from "./page/markdown.js";
-export type { MarkdownSection } from "./page/markdown.js";
-
+export type { BusEvent, BusEventKind, BusListener } from "./bus.js";
+export { Bus } from "./bus.js";
+export type { CdpEventHandler, CdpSendOpts } from "./cdp/client.js";
+export { CDP } from "./cdp/client.js";
+export { Session } from "./cdp/session.js";
+export type { BrowsemodeConfig, PartialConfig } from "./config.js";
+export { configure, getConfig, resetConfig } from "./config.js";
 export {
   meetsExpectation,
   parseExpectationSpec,
 } from "./orchestration/expectation.js";
-export { openWithFallback } from "./orchestration/fallback.js";
 export type {
   OpenResult,
   OpenWithFallbackOpts,
 } from "./orchestration/fallback.js";
+export { openWithFallback } from "./orchestration/fallback.js";
+export type { PersistedBrowser } from "./orchestration/persistence.js";
 export {
   clearBrowser,
   listBrowsers,
@@ -59,7 +42,15 @@ export {
   pathForBrowser,
   saveBrowser,
 } from "./orchestration/persistence.js";
-export type { PersistedBrowser } from "./orchestration/persistence.js";
+export type { MarkdownSection } from "./page/markdown.js";
+export {
+  extractSections,
+  htmlToMarkdown,
+  urlToMarkdown,
+} from "./page/markdown.js";
+export type { PageOpts } from "./page/page.js";
+export { Page } from "./page/page.js";
+export { Sandbox } from "./sandbox/sandbox.js";
 
 export type {
   ElementInfo,
@@ -83,20 +74,20 @@ import { CDP } from "./cdp/client.js";
 import { Session } from "./cdp/session.js";
 import {
   type BrowsemodeConfig,
-  type PartialConfig,
   configure,
   getConfig,
+  type PartialConfig,
 } from "./config.js";
 import {
-  openWithFallback,
   type OpenResult,
   type OpenWithFallbackOpts,
+  openWithFallback,
 } from "./orchestration/fallback.js";
 import {
-  type PersistedBrowser,
   clearBrowser,
   listBrowsers,
   loadBrowser,
+  type PersistedBrowser,
 } from "./orchestration/persistence.js";
 import { Page } from "./page/page.js";
 
@@ -128,7 +119,7 @@ export const Browsemode = {
     const snapshot = loadBrowser(id);
     if (!snapshot) {
       throw new Error(
-        `no saved browser with id '${id}' (looked in ${getConfig().cacheDir}/browsers)`
+        `no saved browser with id '${id}' (looked in ${getConfig().cacheDir}/browsers)`,
       );
     }
 
@@ -136,15 +127,15 @@ export const Browsemode = {
     // so a hung browser doesn't wedge the caller).
     const probe = await fetch(
       `http://${snapshot.host}:${snapshot.port}/json/version`,
-      { signal: AbortSignal.timeout(getConfig().defaults.probeTimeoutMs) }
+      { signal: AbortSignal.timeout(getConfig().defaults.probeTimeoutMs) },
     ).catch((e: any) => {
       throw new Error(
-        `saved browser '${id}' points at ${snapshot.host}:${snapshot.port} but it's not reachable (${e?.message ?? e})`
+        `saved browser '${id}' points at ${snapshot.host}:${snapshot.port} but it's not reachable (${e?.message ?? e})`,
       );
     });
     if (!probe.ok) {
       throw new Error(
-        `saved browser '${id}' probe returned ${probe.status} from ${snapshot.host}:${snapshot.port}`
+        `saved browser '${id}' probe returned ${probe.status} from ${snapshot.host}:${snapshot.port}`,
       );
     }
 

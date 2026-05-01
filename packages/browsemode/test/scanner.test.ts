@@ -28,6 +28,6 @@ describe("SCAN_SCRIPT", () => {
   it("includes the interactable selector list", () => {
     expect(SCAN_SCRIPT).toContain("a[href]");
     expect(SCAN_SCRIPT).toContain("button");
-    expect(SCAN_SCRIPT).toContain("[role=\"button\"]");
+    expect(SCAN_SCRIPT).toContain('[role="button"]');
   });
 });

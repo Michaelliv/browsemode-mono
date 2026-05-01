@@ -8,8 +8,8 @@
 import {
   existsSync,
   mkdirSync,
-  readFileSync,
   readdirSync,
+  readFileSync,
   unlinkSync,
   writeFileSync,
 } from "node:fs";
@@ -79,7 +79,7 @@ export function listBrowsers(): PersistedBrowser[] {
     if (!f.endsWith(".json")) continue;
     try {
       out.push(
-        JSON.parse(readFileSync(join(dir, f), "utf-8")) as PersistedBrowser
+        JSON.parse(readFileSync(join(dir, f), "utf-8")) as PersistedBrowser,
       );
     } catch {
       // skip

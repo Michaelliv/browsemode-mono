@@ -14,6 +14,7 @@
 
 import { Database } from "bun:sqlite";
 import { execFileSync } from "node:child_process";
+import { createDecipheriv, createHash, pbkdf2Sync } from "node:crypto";
 import {
   chmodSync,
   copyFileSync,
@@ -21,13 +22,12 @@ import {
   existsSync,
   mkdirSync,
   mkdtempSync,
-  readFileSync,
   readdirSync,
+  readFileSync,
   statSync,
   unlinkSync,
   writeFileSync,
 } from "node:fs";
-import { createDecipheriv, createHash, pbkdf2Sync } from "node:crypto";
 import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import { getConfig } from "../config.js";
@@ -123,13 +123,13 @@ function getKeychainPassword(): string {
     const out = execFileSync(
       "/usr/bin/security",
       ["find-generic-password", "-wa", "Chrome", "-s", "Chrome Safe Storage"],
-      { encoding: "utf-8", stdio: ["ignore", "pipe", "pipe"] }
+      { encoding: "utf-8", stdio: ["ignore", "pipe", "pipe"] },
     );
     return out.trim();
   } catch (e: any) {
     throw new Error(
       "Couldn't read Chrome Safe Storage password from Keychain. " +
-        `If macOS prompted, click Allow (or Always Allow). Detail: ${e.message}`
+        `If macOS prompted, click Allow (or Always Allow). Detail: ${e.message}`,
     );
   }
 }
@@ -191,7 +191,7 @@ export function readChromeCookies(opts: ReadCookiesOpts = {}): ChromeCookie[] {
   if (!src) {
     throw new Error(
       `No Cookies file found for profile "${profile}" under ${userDir}. ` +
-        `Tried: ${candidates.join(", ")}`
+        `Tried: ${candidates.join(", ")}`,
     );
   }
 
@@ -253,7 +253,7 @@ export function readChromeCookies(opts: ReadCookiesOpts = {}): ChromeCookie[] {
       >(
         `SELECT host_key, name, value, encrypted_value, path,
                 expires_utc, is_secure, is_httponly, samesite
-         FROM cookies ${where}`
+         FROM cookies ${where}`,
       )
       .all(...params);
 

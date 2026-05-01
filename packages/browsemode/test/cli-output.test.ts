@@ -21,59 +21,74 @@ afterEach(() => {
 
 describe("output triple", () => {
   it("--json picks the json handler and writes JSON", () => {
-    output({ json: true }, {
-      json: () => ({ x: 1 }),
-      human: () => {
-        throw new Error("should not run");
+    output(
+      { json: true },
+      {
+        json: () => ({ x: 1 }),
+        human: () => {
+          throw new Error("should not run");
+        },
       },
-    });
+    );
     expect(stdoutBuf).toContain('"x": 1');
   });
 
   it("--quiet picks the quiet handler", () => {
     let q = false;
-    output({ quiet: true }, {
-      quiet: () => {
-        q = true;
+    output(
+      { quiet: true },
+      {
+        quiet: () => {
+          q = true;
+        },
+        human: () => {
+          throw new Error("should not run");
+        },
       },
-      human: () => {
-        throw new Error("should not run");
-      },
-    });
+    );
     expect(q).toBe(true);
   });
 
   it("default falls through to human", () => {
     let h = false;
-    output({}, {
-      json: () => ({ x: 1 }),
-      quiet: () => {
-        throw new Error("should not run");
+    output(
+      {},
+      {
+        json: () => ({ x: 1 }),
+        quiet: () => {
+          throw new Error("should not run");
+        },
+        human: () => {
+          h = true;
+        },
       },
-      human: () => {
-        h = true;
-      },
-    });
+    );
     expect(h).toBe(true);
   });
 
   it("--json without a json handler still falls back to human", () => {
     let h = false;
-    output({ json: true }, {
-      human: () => {
-        h = true;
+    output(
+      { json: true },
+      {
+        human: () => {
+          h = true;
+        },
       },
-    });
+    );
     expect(h).toBe(true);
   });
 
   it("--quiet without a quiet handler still falls back to human", () => {
     let h = false;
-    output({ quiet: true }, {
-      human: () => {
-        h = true;
+    output(
+      { quiet: true },
+      {
+        human: () => {
+          h = true;
+        },
       },
-    });
+    );
     expect(h).toBe(true);
   });
 });

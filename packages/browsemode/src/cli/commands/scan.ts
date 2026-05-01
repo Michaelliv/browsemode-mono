@@ -44,7 +44,7 @@ export async function scanCmd(flags: ScanOpts): Promise<void> {
           const verbs = e.verbs.join("|");
           const text = e.text.slice(0, 60).replace(/\s+/g, " ");
           lineOut(
-            `${e.name.padEnd(36)} ${e.kind.padEnd(10)} [${verbs}]  ${text}`
+            `${e.name.padEnd(36)} ${e.kind.padEnd(10)} [${verbs}]  ${text}`,
           );
         }
         const colls = Object.entries(scan.collections);
@@ -56,7 +56,10 @@ export async function scanCmd(flags: ScanOpts): Promise<void> {
           }
         }
         lineOut("");
-        nextStep(`browsemode exec --browser ${id} 'return await page.find(\"login\")'`, opts);
+        nextStep(
+          `browsemode exec --browser ${id} 'return await page.find("login")'`,
+          opts,
+        );
       },
     });
   } finally {

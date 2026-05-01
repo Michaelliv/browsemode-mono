@@ -7,7 +7,14 @@ import { ensureBrowser } from "../browser-handle.js";
 import { EXIT_ERROR, EXIT_USER_ERROR } from "../exit-codes.js";
 import type { GlobalFlags } from "../flags.js";
 import { applyGlobalFlags, outputOpts, resolveBrowserId } from "../flags.js";
-import { hint, info, jsonOut, lineOut, output, renderError } from "../output.js";
+import {
+  hint,
+  info,
+  jsonOut,
+  lineOut,
+  output,
+  renderError,
+} from "../output.js";
 
 export interface ExecOpts extends GlobalFlags {
   url?: string;
@@ -18,7 +25,7 @@ export interface ExecOpts extends GlobalFlags {
 
 export async function execCmd(
   code: string | undefined,
-  flags: ExecOpts
+  flags: ExecOpts,
 ): Promise<void> {
   applyGlobalFlags(flags);
   const opts = outputOpts(flags);
@@ -36,12 +43,12 @@ export async function execCmd(
           "pass JS as the last argument, or use --file <path>, or pipe via '-'",
         ],
         next: [
-          'browsemode exec \'return await page.title();\'',
+          "browsemode exec 'return await page.title();'",
           "browsemode exec --file run.js",
           "echo 'return 1+1' | browsemode exec -",
         ],
       },
-      opts
+      opts,
     );
     process.exit(EXIT_USER_ERROR);
   }

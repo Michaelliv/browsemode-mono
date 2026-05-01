@@ -1,9 +1,9 @@
 import { describe, expect, it } from "bun:test";
 import {
+  assertElementVerb,
   ELEMENT_VERBS,
   NAVIGATING_ELEMENT_VERBS,
   UNIVERSAL_ELEMENT_VERBS,
-  assertElementVerb,
 } from "../src/page/verbs/element.js";
 
 const EL = (kind: string, verbs: string[] = []) =>
@@ -54,12 +54,18 @@ describe("element verb registry", () => {
 
 describe("assertElementVerb", () => {
   it("accepts a kind-supported verb", () => {
-    expect(() => assertElementVerb(EL("button", ["click", "text"]), "click")).not.toThrow();
+    expect(() =>
+      assertElementVerb(EL("button", ["click", "text"]), "click"),
+    ).not.toThrow();
   });
 
   it("accepts a universal verb regardless of kind", () => {
-    expect(() => assertElementVerb(EL("button", ["click"]), "hover")).not.toThrow();
-    expect(() => assertElementVerb(EL("button", ["click"]), "press")).not.toThrow();
+    expect(() =>
+      assertElementVerb(EL("button", ["click"]), "hover"),
+    ).not.toThrow();
+    expect(() =>
+      assertElementVerb(EL("button", ["click"]), "press"),
+    ).not.toThrow();
   });
 
   it("throws for an unsupported verb", () => {

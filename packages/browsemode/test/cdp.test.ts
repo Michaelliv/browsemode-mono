@@ -51,8 +51,14 @@ describe("CDP", () => {
     const cdp = await CDP.connect("ws://test/x");
     const ws = lastSocket();
     const seen: any[] = [];
-    cdp.on("Page.frameAttached", (params, sessionId) => seen.push({ params, sessionId }));
-    ws.push({ method: "Page.frameAttached", params: { frameId: "F1" }, sessionId: "S1" });
+    cdp.on("Page.frameAttached", (params, sessionId) =>
+      seen.push({ params, sessionId }),
+    );
+    ws.push({
+      method: "Page.frameAttached",
+      params: { frameId: "F1" },
+      sessionId: "S1",
+    });
     expect(seen).toEqual([{ params: { frameId: "F1" }, sessionId: "S1" }]);
   });
 

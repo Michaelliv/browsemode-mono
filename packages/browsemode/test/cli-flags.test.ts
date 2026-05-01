@@ -1,11 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
-import { resetConfig } from "../src/config.js";
 import {
   applyGlobalFlags,
   outputOpts,
   parseGlobalFlags,
   resolveBrowserId,
 } from "../src/cli/flags.js";
+import { resetConfig } from "../src/config.js";
 
 beforeEach(() => resetConfig());
 afterEach(() => resetConfig());

@@ -8,7 +8,11 @@ describe("Bus", () => {
     bus.on("iframe.attached", (e) => seen.push(e));
     bus.emit({ kind: "iframe.attached", targetId: "T1", url: "https://a.com" });
     expect(seen).toHaveLength(1);
-    expect(seen[0]).toEqual({ kind: "iframe.attached", targetId: "T1", url: "https://a.com" });
+    expect(seen[0]).toEqual({
+      kind: "iframe.attached",
+      targetId: "T1",
+      url: "https://a.com",
+    });
   });
 
   it("does not deliver events to listeners of a different kind", () => {
@@ -25,7 +29,12 @@ describe("Bus", () => {
     const b = mock(() => {});
     bus.on("nav.timeout", a);
     bus.on("nav.timeout", b);
-    bus.emit({ kind: "nav.timeout", url: "u", waitUntil: "load", timeoutMs: 1 });
+    bus.emit({
+      kind: "nav.timeout",
+      url: "u",
+      waitUntil: "load",
+      timeoutMs: 1,
+    });
     expect(a).toHaveBeenCalledTimes(1);
     expect(b).toHaveBeenCalledTimes(1);
   });

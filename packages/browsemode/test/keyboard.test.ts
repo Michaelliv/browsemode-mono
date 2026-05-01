@@ -50,7 +50,9 @@ describe("typeText", () => {
     await typeText(s, "hi");
     const methods = s.calls.map((c: any) => c.method);
     expect(methods).toContain("Input.insertText");
-    expect(s.calls.find((c: any) => c.method === "Input.insertText")?.params).toEqual({
+    expect(
+      s.calls.find((c: any) => c.method === "Input.insertText")?.params,
+    ).toEqual({
       text: "hi",
     });
   });

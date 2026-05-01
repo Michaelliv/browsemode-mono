@@ -35,7 +35,7 @@ export async function htmlToMarkdown(html: string): Promise<string> {
  * the HTML and rendering.
  */
 export async function urlToMarkdown(
-  url: string
+  url: string,
 ): Promise<{ markdown: string; title?: string }> {
   const result = await getMarkit().convertUrl(url);
   return { markdown: result.markdown, title: result.title };

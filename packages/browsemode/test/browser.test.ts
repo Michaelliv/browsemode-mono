@@ -90,7 +90,7 @@ describe("Browser.connect", () => {
       throw new Error("ECONNREFUSED");
     }) as any;
     await expect(Browser.connect({ port: 9999 })).rejects.toThrow(
-      /(json\/version|reach|9999)/i
+      /(json\/version|reach|9999)/i,
     );
   });
 });
@@ -137,4 +137,3 @@ describe("Browser.close", () => {
     expect(browser.cdp.closed).toBe(true);
   });
 });
-
