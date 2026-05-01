@@ -51,14 +51,218 @@ function find(el: ElementInfo): string {
   );
 }
 
-export const ELEMENT_VERBS: Record<string, ElementVerbHandler> = {
-  click: async (s, el) =>
-    s.evalJSON(`(() => {
+/**
+ * Six-step click pipeline ported from browser-use's
+ * _click_element_node_impl. The naive `el.click()` call works for
+ * most cases but fails in three real ways:
+ *
+ *   1. <select> and <input type=file> need their own dispatch (choose,
+ *      upload). Calling .click() on them either no-ops (file input)
+ *      or opens the OS-level dropdown that we can't dismiss.
+ *   2. Elements with multiple bounding rects (a long anchor that
+ *      wraps across lines) get a click that lands on whichever rect
+ *      .click() resolves to first — often the off-screen one.
+ *   3. Elements covered by a higher-z-index overlay (cookie banners,
+ *      modals) get "clicked" via .click() but the user never sees the
+ *      handler fire because pointer events go to the cover. Real CDP
+ *      mouse dispatch would also miss; here we fall back to JS click
+ *      which bypasses pointer-events.
+ *
+ * The pipeline (one Runtime.evaluate to gather state, then either
+ * three Input.dispatchMouseEvent calls or one JS .click() fallback):
+ *
+ *   1. Refuse <select> and <input type=file> with a structured
+ *      validation_error result (no exception, easier for agents).
+ *   2. Capture pre-click `checked` for toggleables so the result can
+ *      surface whether the click actually toggled.
+ *   3. scrollIntoView({block:'center'}) and settle.
+ *   4. Get every getClientRects() entry, pick the one with the
+ *      largest area visible inside the viewport (Pattern #4).
+ *   5. Clamp the click point inside the viewport (off-screen clicks
+ *      are rejected by Chrome).
+ *   6. Occlusion check via elementFromPoint when available
+ *      (graceful no-op on obscura which doesn't implement it).
+ *   7. Either CDP-level mouse dispatch (mouseMoved, mousePressed,
+ *      mouseReleased — each with its own timeout) or JS .click()
+ *      fallback when occluded.
+ */
+async function clickPipeline(
+  s: Session,
+  el: ElementInfo,
+  _args: unknown,
+): Promise<unknown> {
+  // ── Step 1–6: gather plan in one round trip ──
+  const plan = (await s.evalJSON(`(() => {
+    const el = (${find(el)});
+    if (!el) return { error: 'gone' };
+    const tag = (el.tagName || '').toLowerCase();
+    const type = (el.type || '').toLowerCase();
+    if (tag === 'select') {
+      return { validation_error: 'use ' + ${q(el.name)} + '.choose(value) for <select>; click would open the OS dropdown' };
+    }
+    if (tag === 'input' && type === 'file') {
+      return { validation_error: 'use ' + ${q(el.name)} + '.upload(path) for <input type=file>; click is a no-op' };
+    }
+    const isToggle = tag === 'input' && (type === 'checkbox' || type === 'radio');
+    const preClickChecked = isToggle ? !!el.checked : null;
+
+    // Step 3: scrollIntoView. settle is done on the TS side after this returns.
+    try {
+      el.scrollIntoView({ block: 'center', inline: 'center', behavior: 'instant' });
+    } catch {}
+
+    // Step 4: pick the largest visible rect.
+    const rects = el.getClientRects ? Array.from(el.getClientRects()) : [el.getBoundingClientRect()];
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    let bestRect = null;
+    let bestArea = 0;
+    for (const r of rects) {
+      if (r.right < 0 || r.bottom < 0 || r.left > vw || r.top > vh) continue;
+      const visW = Math.min(vw, r.right) - Math.max(0, r.left);
+      const visH = Math.min(vh, r.bottom) - Math.max(0, r.top);
+      const area = visW * visH;
+      if (area > bestArea) { bestArea = area; bestRect = r; }
+    }
+    if (!bestRect && rects.length) bestRect = rects[0];
+    if (!bestRect) return { error: 'no_rect' };
+
+    // Step 5: clamp center to viewport.
+    let cx = (bestRect.left + bestRect.right) / 2;
+    let cy = (bestRect.top + bestRect.bottom) / 2;
+    cx = Math.max(0, Math.min(vw - 1, cx));
+    cy = Math.max(0, Math.min(vh - 1, cy));
+
+    // Step 6: occlusion check, graceful when elementFromPoint is
+    // unavailable (obscura V8 doesn't ship it).
+    let occluded = false;
+    if (typeof document.elementFromPoint === 'function') {
+      const top = document.elementFromPoint(cx, cy);
+      if (top && top !== el && !el.contains(top) && !top.contains(el)) {
+        occluded = true;
+      }
+    }
+
+    return {
+      x: cx,
+      y: cy,
+      isToggle,
+      preClickChecked,
+      occluded,
+      hasElementFromPoint: typeof document.elementFromPoint === 'function',
+    };
+  })()`)) as any;
+
+  if (plan?.error === 'gone') {
+    throw new Error(`Element gone: ${el.name}`);
+  }
+  if (plan?.validation_error) {
+    return { validation_error: plan.validation_error };
+  }
+  if (plan?.error === 'no_rect') {
+    // Off-screen and unscrollable to: fall back to JS .click().
+    await s.evalJSON(`(${find(el)})?.click?.()`);
+    return { ok: true, via: "js-click-no-rect" };
+  }
+
+  // 50ms scroll settle (Step 3). Browser-use uses the same number.
+  await new Promise((r) => setTimeout(r, 50));
+
+  // Pattern #3 caveat discovered against obscura: when the runtime
+  // doesn't ship document.elementFromPoint, it also doesn't have a
+  // real layout engine, so Input.dispatchMouseEvent at any coordinate
+  // is a no-op (no painted elements to hit). Same signal, same
+  // mitigation: skip the CDP mouse path and use JS .click(). Real
+  // Chrome / Edge / Brave all return hasElementFromPoint=true and
+  // get the full CDP dispatch.
+  if (!plan.hasElementFromPoint) {
+    await s.evalJSON(`(${find(el)})?.click?.()`);
+    const result: any = { ok: true, via: "js-click-no-layout" };
+    if (plan.isToggle) {
+      const post = await s.evalJSON(`(() => {
+        const el = (${find(el)});
+        return el ? !!el.checked : null;
+      })()`);
+      result.preClickChecked = plan.preClickChecked;
+      result.postClickChecked = post;
+      result.toggled = plan.preClickChecked !== post;
+    }
+    return result;
+  }
+
+  // Step 7a: occluded → JS click (bypasses pointer-events).
+  if (plan.occluded) {
+    await s.evalJSON(`(${find(el)})?.click?.()`);
+    const result: any = { ok: true, via: "js-click-occluded" };
+    if (plan.isToggle) {
+      const post = await s.evalJSON(`(() => {
+        const el = (${find(el)});
+        return el ? !!el.checked : null;
+      })()`);
+      result.preClickChecked = plan.preClickChecked;
+      result.postClickChecked = post;
+      result.toggled = plan.preClickChecked !== post;
+    }
+    return result;
+  }
+
+  // Step 7b: CDP mouse dispatch. Three calls, each with its own short
+  // timeout. Failure modes: a confirm() opening between mousePressed
+  // and mouseReleased (browser-use's exact reasoning) blocks until the
+  // popups watchdog dismisses it. Bounded waits ensure we proceed even
+  // if the browser is mid-dialog.
+  const move = s.cdp.send(
+    "Input.dispatchMouseEvent",
+    { type: "mouseMoved", x: plan.x, y: plan.y },
+    s.id,
+    { timeoutMs: 1000 },
+  );
+  await move;
+  await s.cdp.send(
+    "Input.dispatchMouseEvent",
+    {
+      type: "mousePressed",
+      x: plan.x,
+      y: plan.y,
+      button: "left",
+      clickCount: 1,
+    },
+    s.id,
+    { timeoutMs: 3000 },
+  );
+  await s.cdp.send(
+    "Input.dispatchMouseEvent",
+    {
+      type: "mouseReleased",
+      x: plan.x,
+      y: plan.y,
+      button: "left",
+      clickCount: 1,
+    },
+    s.id,
+    { timeoutMs: 5000 },
+  );
+
+  const result: any = {
+    ok: true,
+    via: "cdp-mouse",
+    x: plan.x,
+    y: plan.y,
+  };
+  if (plan.isToggle) {
+    const post = await s.evalJSON(`(() => {
       const el = (${find(el)});
-      if (!el) throw new Error('Element gone: ${el.name}');
-      el.click();
-      return { ok: true };
-    })()`),
+      return el ? !!el.checked : null;
+    })()`);
+    result.preClickChecked = plan.preClickChecked;
+    result.postClickChecked = post;
+    result.toggled = plan.preClickChecked !== post;
+  }
+  return result;
+}
+
+export const ELEMENT_VERBS: Record<string, ElementVerbHandler> = {
+  click: clickPipeline,
 
   text: async (s, el) =>
     s.evalString(`(${find(el)})?.textContent?.trim() ?? ''`),
