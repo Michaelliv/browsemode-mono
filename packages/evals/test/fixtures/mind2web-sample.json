@@ -1,0 +1,32 @@
+[
+  {
+    "id": "f1-restaurants",
+    "website": "exploretock",
+    "domain": "Travel",
+    "subdomain": "Restaurant",
+    "confirmed_task": "Check for pickup restaurants available in Boston on March 18, 5pm with one guest.",
+    "action_reprs": [
+      "[combobox] Reservation type -> SELECT: Pickup",
+      "[searchbox] Find a location -> TYPE: Boston"
+    ]
+  },
+  {
+    "id": "f2-shopping",
+    "website": "amazon",
+    "domain": "Shopping",
+    "subdomain": "Electronics",
+    "confirmed_task": "Search for noise-cancelling headphones under $200 with a 4+ star rating.",
+    "action_reprs": [
+      "[searchbox] Search Amazon -> TYPE: noise-cancelling headphones",
+      "[button] Go -> CLICK"
+    ]
+  },
+  {
+    "id": "f3-housing",
+    "website": "redfin",
+    "domain": "Housing",
+    "subdomain": "Real Estate",
+    "confirmed_task": "Find houses for sale in San Francisco under $1M with at least 2 bedrooms.",
+    "action_reprs": []
+  }
+]

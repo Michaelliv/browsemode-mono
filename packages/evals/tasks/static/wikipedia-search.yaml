@@ -1,0 +1,23 @@
+name: wikipedia-search
+task: |
+  Open the English Wikipedia main page, type "Tim Berners-Lee" into
+  the search input, submit the search, and report the title of the
+  page that loads.
+url: https://en.wikipedia.org/wiki/Main_Page
+tags: [search, form, static]
+budget:
+  maxSteps: 6
+  timeoutSec: 60
+
+# direct-sdk version uses named elements; the catalog is rebuilt
+# after each navigation so the search input survives.
+script: |
+  await page.scan();
+  await page.searchInput.fill("Tim Berners-Lee");
+  await page.searchInput.press("Enter");
+  await page.waitFor({ stable: { forMs: 1500 } });
+  return await page.title();
+
+judge:
+  must:
+    - "tim berners-lee"

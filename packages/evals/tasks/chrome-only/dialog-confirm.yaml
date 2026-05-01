@@ -1,0 +1,30 @@
+name: dialog-confirm
+task: |
+  Open a page that calls confirm() during load; the page records the
+  result of confirm() in document.title. Without the popups watchdog
+  the page would hang at the confirm dialog and the title would
+  never update. Verify the watchdog auto-accepts.
+# Inline data: URLs are blocked by obscura's SSRF, so we navigate
+# through about:blank and inject the script.
+url: about:blank
+tags: [dialogs, watchdog, chrome-only]
+only: [chrome]
+budget:
+  maxSteps: 3
+  timeoutSec: 30
+
+script: |
+  // Inject a confirm() that fires immediately. The popups watchdog
+  // should auto-accept; document.title becomes "ok=true".
+  await page.eval(`
+    (function() {
+      const ok = confirm("proceed?");
+      document.title = "ok=" + ok;
+    })();
+  `);
+  await page.wait(200);
+  return await page.title();
+
+judge:
+  must:
+    - "ok=true"

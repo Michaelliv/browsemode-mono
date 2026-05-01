@@ -1,0 +1,20 @@
+# Smoke task: navigate to example.com and read its title.
+# Trivial; if this fails the eval framework or the browser itself
+# is broken.
+
+name: example-com-title
+task: Navigate to https://example.com and report the page title.
+url: https://example.com
+tags: [smoke, static]
+budget:
+  maxSteps: 3
+  timeoutSec: 30
+
+# direct-sdk runner picks this up; pi-extension runner ignores `script`.
+script: |
+  await page.scan();
+  return await page.title();
+
+judge:
+  must:
+    - "example domain"

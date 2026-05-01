@@ -1,0 +1,28 @@
+name: todomvc-add
+task: |
+  Open the TodoMVC React example, add three todos
+  ("write evals", "ship browsemode", "celebrate"), then report
+  the visible todo count from the page footer.
+url: https://todomvc.com/examples/react/dist/
+tags: [spa, form]
+budget:
+  maxSteps: 8
+  timeoutSec: 90
+
+script: |
+  await page.scan();
+  // SPAs that mount after load: settle, then rescan for fresh handles.
+  await page.waitFor({ stable: { forMs: 1000 } });
+  await page.scan();
+  for (const text of ["write evals", "ship browsemode", "celebrate"]) {
+    await page.newTodo.fill(text);
+    await page.newTodo.press("Enter");
+  }
+  await page.waitFor({ stable: { forMs: 500 } });
+  // Read the page text — TodoMVC shows "3 items left"
+  const md = await page.markdown();
+  return md;
+
+judge:
+  must:
+    - "3 items left"

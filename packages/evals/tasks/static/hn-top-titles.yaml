@@ -1,0 +1,22 @@
+name: hn-top-titles
+task: |
+  Open Hacker News and return the titles of the top 5 stories on
+  the front page, one per line.
+url: https://news.ycombinator.com
+tags: [scrape, static, list]
+budget:
+  maxSteps: 4
+  timeoutSec: 60
+
+script: |
+  await page.scan();
+  // HN's "stories" collection is what scan groups together; agents
+  // would resolve this from the catalog. We do it deterministically
+  // here for the smoke run.
+  const collections = await page.exec(`return [...page.collections.keys()]`);
+  return JSON.stringify(await page.list().slice(0, 50));
+
+judge:
+  must:
+    - "hacker news"  # cheap signal we hit the right page; a richer
+                     # judge (LLM) would inspect actual story titles

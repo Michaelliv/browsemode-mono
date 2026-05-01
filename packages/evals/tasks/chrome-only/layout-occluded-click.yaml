@@ -1,0 +1,31 @@
+name: layout-occluded-click
+task: |
+  Page has a button covered by a translucent overlay (higher z-index).
+  The six-step click pipeline should detect occlusion via
+  document.elementFromPoint and fall back to JS .click() to bypass
+  pointer events. Verify the click handler ran.
+url: about:blank
+tags: [click, layout, watchdog, chrome-only]
+only: [chrome]
+budget:
+  maxSteps: 4
+  timeoutSec: 30
+
+script: |
+  // Build the page: a button + a covering div that intercepts pointer
+  // events. JS .click() bypasses pointer-events; CDP mouse dispatch
+  // would route to the cover.
+  await page.eval(`
+    document.body.innerHTML = \`
+      <button id=b style="position:fixed;top:50px;left:60px;width:120px;height:40px"
+              onclick="document.title='clicked'">Sign in</button>
+      <div    id=c style="position:fixed;top:50px;left:60px;width:120px;height:40px;background:red;opacity:0.5"></div>\`;
+  `);
+  await page.scan();
+  await page.click("Sign in");
+  await page.wait(100);
+  return await page.title();
+
+judge:
+  must:
+    - "clicked"
