@@ -45,6 +45,11 @@ function defaultBrowsemodeExtPath(): string {
 
 class PiRunner implements Runner {
   readonly id = "pi";
+  // The spawned pi subprocess (via pi-browsemode) opens its own
+  // browser inside the extension; the orchestrator's pre-opened
+  // handle would be a separate Browser instance that the agent
+  // never sees. Tell the orchestrator to skip that open.
+  readonly ownsBrowser = true;
 
   async run(ctx: RunnerContext): Promise<RunArtifact> {
     const start = Date.now();

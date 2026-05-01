@@ -1,0 +1,16 @@
+name: books-toscrape
+task: |
+  Open https://books.toscrape.com and report the title of the first
+  book on the homepage.
+url: https://books.toscrape.com/
+tags: [scrape, static]
+budget:
+  maxSteps: 4
+  timeoutSec: 90
+
+judge:
+  must:
+    # Books to Scrape's first book is consistently "A Light in the Attic"
+    # but in case the listing rotates, accept any of the top three known
+    # titles by listing the canonical first.
+    - "a light in the attic"

@@ -30,6 +30,12 @@ export class DirectSdkRunner implements Runner {
   }): Promise<RunArtifact> {
     const t = task as DirectSdkTask;
     const start = Date.now();
+    if (!browser) {
+      throw new Error(
+        "direct-sdk runner needs the orchestrator to pre-open a browser. " +
+          "This runner does not declare ownsBrowser=true.",
+      );
+    }
     if (!t.script) {
       throw new Error(
         `direct-sdk runner needs a 'script' field on task '${t.name}'. ` +
@@ -41,10 +47,11 @@ export class DirectSdkRunner implements Runner {
     // script's return value is what the judge sees.
     const result = await browser.exec(t.script);
     const elapsedMs = Date.now() - start;
+    // ExecuteResult uses `.result` for the IIFE return value (not
+    // `.value`); same trap that bit pi-browsemode in d23a9ec.
+    const returned = result.result;
     const output =
-      typeof result.value === "string"
-        ? result.value
-        : JSON.stringify(result.value);
+      typeof returned === "string" ? returned : JSON.stringify(returned);
 
     return {
       output,

@@ -15,8 +15,13 @@ import type { Browser } from "browsemode";
 import type { Backend, EvalTask, RunArtifact } from "./types.js";
 
 export interface RunnerContext {
-  /** Pre-opened browser pointing at task.url (or about:blank). */
-  browser: Browser;
+  /**
+   * Pre-opened browser pointing at task.url (or about:blank). Only
+   * provided when the runner declares ownsBrowser=false. The pi
+   * runner manages its own browser via the spawned subprocess, so
+   * the orchestrator skips the open for it.
+   */
+  browser: Browser | null;
   /** Which backend this run is targeting. Runners may want to log it. */
   backend: Backend;
   /** Task being attempted. */
@@ -28,6 +33,11 @@ export interface RunnerContext {
 export interface Runner {
   /** Stable id ("direct-sdk", "pi", ...). */
   readonly id: string;
+  /**
+   * If true, the runner spawns/owns its own browser and the
+   * orchestrator should NOT pre-open one. Default false.
+   */
+  readonly ownsBrowser?: boolean;
   /** Attempt the task. Should respect ctx.signal. */
   run(ctx: RunnerContext): Promise<RunArtifact>;
 }

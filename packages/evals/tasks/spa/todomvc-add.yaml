@@ -4,7 +4,12 @@ task: |
   ("write evals", "ship browsemode", "celebrate"), then report
   the visible todo count from the page footer.
 url: https://todomvc.com/examples/react/dist/
-tags: [spa, form]
+tags: [spa, form, chrome-only]
+# Obscura v0.1.x doesn't fully bootstrap this React app — the JS
+# bundles report loaded:false and the React root has 0 children
+# even after a 5s settle. Pinning to chrome until obscura's SPA
+# support catches up.
+only: [chrome]
 budget:
   maxSteps: 8
   timeoutSec: 90

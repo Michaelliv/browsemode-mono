@@ -32,18 +32,26 @@ export async function runOne(
 ): Promise<RunResult> {
   const { runnerId, backend } = opts;
   const runner = getRunner(runnerId);
-  const timeoutMs = (task.budget?.timeoutSec ?? 120) * 1000;
+  // Default 240s. Real LLM-driven runs against busy sites need
+  // multiple round trips; 30-120s is too tight even for simple
+  // tasks once you account for streaming + tool latency. Tasks can
+  // override per-budget.
+  const timeoutMs = (task.budget?.timeoutSec ?? 240) * 1000;
   const ac = new AbortController();
   const timer = setTimeout(() => ac.abort(), timeoutMs);
 
   let browser: Browser | null = null;
   const start = Date.now();
   try {
-    browser = await openBrowser(backend, opts);
-    if (task.url) {
-      await browser.newPage({ url: task.url });
-    } else {
-      await browser.newPage();
+    // Runners that spawn their own browser (pi) get a null handle
+    // so we don't pay for a connect+newPage they'll never see.
+    if (!runner.ownsBrowser) {
+      browser = await openBrowser(backend, opts);
+      if (task.url) {
+        await browser.newPage({ url: task.url });
+      } else {
+        await browser.newPage();
+      }
     }
     const artifact = await runner.run({
       browser,
