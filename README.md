@@ -79,7 +79,11 @@ const b = await Browsemode.restore("research");  // later, in another process
 
 **Auto-fallback when the primary wedges.** Configure obscura as the primary and Chrome as the fallback. If the primary fails to settle within the timeout, browsemode spawns the managed Chrome and retries. The whole flow runs on either backend without code changes.
 
-**Tiny footprint by default.** browsemode's recommended primary is [obscura](https://github.com/h4ckf0r0day/obscura), a Rust headless browser that speaks CDP. ~30 MB RAM per session vs Chrome's 200+ MB, ~70 MB single binary vs Chrome's 300+ MB install, ~85 ms page loads vs ~500 ms, and instant cold start vs Chrome's ~2 seconds. For a Docker image: copy one binary, no apt-get install of Chromium and its X11/font dependencies, no `--no-sandbox` ritual. Chrome stays as the fallback for the small set of pages obscura can't handle yet.
+**Tiny footprint by default.** browsemode's recommended primary is [obscura](https://github.com/h4ckf0r0day/obscura), a Rust headless browser that speaks CDP. ~30 MB RAM per session vs Chrome's 200+ MB, ~70 MB single binary vs Chrome's 300+ MB install, ~85 ms page loads vs ~500 ms, and instant cold start vs Chrome's ~2 seconds. For a Docker image: copy one binary, no apt-get install of Chromium and its X11/font dependencies, no `--no-sandbox` ritual.
+
+**Scope today.** obscura is v0.1.x, a young project (first release April 2026) actively filling out CDP coverage. browsemode is tested against it and degrades cleanly on the gaps. Out of the verbs we ship, on obscura you get the fast path for navigation, scan, fill, type, eval, markdown extraction, cookie injection, and JS-level click. You fall back to Chrome (auto, transparent) for clicks that need real layout coordinates, JavaScript dialogs (`alert` / `confirm` / `prompt`), browser-managed downloads, request interception via `Fetch.*`, screenshots, and any flow that requires a working `elementFromPoint` or `Page.getLayoutMetrics`. The fallback Browser instance is the same `Browser` class with a different backend, so calling code never branches on this. As obscura merges its [open CDP PRs](https://github.com/h4ckf0r0day/obscura/pulls) more flows shift to the obscura path automatically.
+
+**Same one binary in Docker either way.** Even when you need Chrome fallback, the *primary* doesn't have to ship Chromium in the image. A pure-obscura image is ~70 MB and handles a real majority of read-heavy workloads. Add Chrome only when you know your flow needs it, or run two services and let the orchestrator pick.
 
 **No screenshots, no vision models.** Pages convert to markdown via [markit](https://github.com/Michaelliv/markit) when the agent needs to read content. This is fast, deterministic, and costs near zero tokens compared to image input.
 
@@ -126,10 +130,14 @@ ENV BROWSEMODE_DEFAULT_BROWSER_ID=container-1
 | Element addressing | named (`page.signInButton`) | numeric index (`click 0`) | natural language (`act("click sign in")`) | accessibility refs (`ref=e3`) |
 | Reasoning per task | one script | many tool calls | many primitives | many tool calls |
 | Driver | direct CDP | direct CDP | Playwright | Playwright |
-| Default browser | obscura (Rust, 30 MB RAM) | Chromium (200+ MB RAM) | Chromium (200+ MB RAM) | Chromium (200+ MB RAM) |
+| Default browser | obscura v0.1.x (Rust, 30 MB RAM) | Chromium (200+ MB RAM) | Chromium (200+ MB RAM) | Chromium (200+ MB RAM) |
 | Docker image cost | ~70 MB binary, no Chrome | full Chromium install | full Chromium install | full Chromium install |
 | Cold start | instant | ~2 s | ~2 s | ~2 s |
-| Fallback browser | Chrome, Brave, Edge, Arc | Chromium | Chromium / cloud | Chromium / Firefox / WebKit |
+| Fallback browser | Chrome, Brave, Edge, Arc (transparent) | Chromium | Chromium / cloud | Chromium / Firefox / WebKit |
+| Layout-aware click | Chrome only (obscura: JS click) | yes | yes | yes |
+| JS dialogs (alert/confirm/prompt) | Chrome only (obscura no-ops them) | yes | yes | yes |
+| Browser-level downloads | Chrome only | yes | yes | yes |
+| Request interception (Fetch.*) | Chrome only (obscura PR [#50](https://github.com/h4ckf0r0day/obscura/pull/50) pending) | not exposed | yes | yes |
 | Vision | markdown via markit | screenshots | optional | accessibility snapshots |
 | Sandbox | QuickJS | none | none | none |
 | Persistence | id-keyed snapshots | session dir | profile dir | profile dir |
@@ -151,7 +159,7 @@ The `pi-browse` package is consumed via `workspace:*` and exposes browsemode thr
 
 ```bash
 bun install
-bun test                # 174 tests across both packages
+bun test                # 199 tests across both packages
 bun run typecheck       # tsc --noEmit
 bun run lint            # biome check
 bun run packages/browsemode/src/cli/main.ts --help
@@ -163,7 +171,11 @@ For agents working in this repo, see [AGENTS.md](AGENTS.md) for architecture, co
 
 ## Status
 
-Early. The SDK is stable enough to drive real flows; the CLI is shipping. Anti-bot defenses (Cloudflare TLS fingerprinting, canvas-based UIs) are known gaps. See the issue tracker.
+Early, on both sides. The SDK is stable enough to drive real flows; the CLI is shipping; the watchdog scaffold (popups, downloads) is in place. Anti-bot defenses (Cloudflare TLS fingerprinting, canvas-based UIs) are known gaps.
+
+Obscura is at v0.1.x and rapidly filling CDP gaps. browsemode pins no specific obscura version but is tested against the current release. We catch obscura's missing surfaces (`elementFromPoint`, `Page.getLayoutMetrics`, real `Fetch` interception, dialog events, downloads) at runtime and fall back to Chrome where needed. As obscura merges its open PRs, more flows shift to the obscura path with no code change here.
+
+If you're choosing a stack today: use browsemode if you want a single API that runs against either backend, with the small one for the easy 80% of pages and the heavy one only when forced. Use Stagehand or browser-use directly if you want a polished Chromium-first experience and don't care about the deployment cost.
 
 ## License
 
