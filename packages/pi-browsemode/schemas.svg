@@ -1,0 +1,146 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1800" height="1640" viewBox="0 0 1800 1640">
+  <defs>
+    <style>
+      .bg { fill: #ffffff; }
+      .title { font: 700 38px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #373083; }
+      .section { font: 700 34px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #07584f; }
+      .tableHead { fill: #5549bd; }
+      .tableHeadText { font: 700 26px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: white; }
+      .cellText { font: 500 25px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #342f91; }
+      .muted { fill: #7e7c75; }
+      .rowAlt { fill: #ecebff; }
+      .line { stroke: #d6d1c7; stroke-width: 2; }
+      .dash { stroke: #e5e0d8; stroke-width: 2; stroke-dasharray: 8 12; }
+      .pill { fill: #fff0eb; stroke: #c25d3c; stroke-width: 1.5; }
+      .pillText { font: 700 25px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #7b2b18; }
+      .card { fill: #e3f7f0; stroke: #0b8878; stroke-width: 1.5; }
+      .cardTitle { font: 700 27px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #07584f; }
+      .cardText { font: 500 23px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #007165; }
+      .cardSub { font: 400 21px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #7e7c75; }
+      .legend { font: 400 27px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #4b4945; }
+      .noteBox { fill: #f3f0e9; stroke: #bdb7ab; stroke-width: 1.4; }
+      .noteTitle { font: 700 27px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #45423d; }
+      .noteText { font: 400 25px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #5f5c56; }
+      .tiny { font: 500 19px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #7e7c75; }
+      .mono { font: 500 21px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; fill: #007165; }
+    </style>
+  </defs>
+
+  <rect class="bg" width="1800" height="1640"/>
+
+  <text class="title" x="900" y="62" text-anchor="middle">execute_browsemode schema (all providers)</text>
+
+  <!-- Common schema table -->
+  <g transform="translate(440,88)">
+    <rect class="tableHead" x="0" y="0" width="920" height="60" rx="10"/>
+    <text class="tableHeadText" x="40" y="38">Parameter</text>
+    <text class="tableHeadText" x="400" y="38">Type</text>
+    <text class="tableHeadText" x="720" y="38">Required</text>
+
+    <rect class="rowAlt" x="0" y="60" width="920" height="64"/>
+    <text class="cellText" x="40" y="101">code</text>
+    <text class="cellText" x="400" y="101">string</text>
+    <text class="cellText" x="720" y="101">yes</text>
+
+    <line class="line" x1="0" y1="124" x2="920" y2="124"/>
+  </g>
+
+  <g transform="translate(560,400)">
+    <rect class="pill" x="0" y="0" width="680" height="52" rx="25"/>
+    <text class="pillText" x="340" y="35" text-anchor="middle">pi-browsemode exposes only this 1 tool parameter</text>
+  </g>
+
+  <line class="dash" x1="120" y1="495" x2="1680" y2="495"/>
+
+  <text class="section" x="900" y="548" text-anchor="middle">Provider selection happens via environment</text>
+
+  <!-- Provider cards -->
+  <g transform="translate(60,585)">
+    <rect class="card" x="0" y="0" width="390" height="178" rx="15"/>
+    <text class="cardTitle" x="195" y="40" text-anchor="middle">chrome</text>
+    <text class="cardText" x="30" y="86">default local browser</text>
+    <text class="cardSub" x="30" y="119">no env vars</text>
+    <text class="cardSub" x="30" y="151">managed Chrome + snapshots</text>
+  </g>
+
+  <g transform="translate(480,585)">
+    <rect class="card" x="0" y="0" width="390" height="178" rx="15"/>
+    <text class="cardTitle" x="195" y="40" text-anchor="middle">obscura</text>
+    <text class="mono" x="30" y="86">PI_BROWSE_PROVIDER=obscura</text>
+    <text class="cardSub" x="30" y="119">PI_BROWSE_OBSCURA_PORT</text>
+    <text class="cardSub" x="30" y="151">falls back to Chrome</text>
+  </g>
+
+  <g transform="translate(900,585)">
+    <rect class="card" x="0" y="0" width="390" height="178" rx="15"/>
+    <text class="cardTitle" x="195" y="40" text-anchor="middle">remote-cdp</text>
+    <text class="mono" x="30" y="86">PI_BROWSE_CDP_WS_URL</text>
+    <text class="cardSub" x="30" y="119">or CDP_HOST + CDP_PORT</text>
+    <text class="cardSub" x="30" y="151">any CDP-compatible Chrome</text>
+  </g>
+
+  <g transform="translate(1320,585)">
+    <rect class="card" x="0" y="0" width="420" height="178" rx="15"/>
+    <text class="cardTitle" x="210" y="40" text-anchor="middle">steel</text>
+    <text class="mono" x="30" y="86">STEEL_API_KEY</text>
+    <text class="cardSub" x="30" y="119">useProxy, solveCaptcha, timeout</text>
+    <text class="cardSub" x="30" y="151">releases session on close</text>
+  </g>
+
+  <g transform="translate(60,800)">
+    <rect class="card" x="0" y="0" width="390" height="178" rx="15"/>
+    <text class="cardTitle" x="195" y="40" text-anchor="middle">browserbase</text>
+    <text class="mono" x="30" y="86">BROWSERBASE_API_KEY</text>
+    <text class="cardSub" x="30" y="119">PROJECT_ID, REGION</text>
+    <text class="cardSub" x="30" y="151">connectUrl over CDP</text>
+  </g>
+
+  <g transform="translate(480,800)">
+    <rect class="card" x="0" y="0" width="390" height="178" rx="15"/>
+    <text class="cardTitle" x="195" y="40" text-anchor="middle">browserless</text>
+    <text class="mono" x="30" y="86">BROWSERLESS_API_TOKEN</text>
+    <text class="cardSub" x="30" y="119">WS_URL, BLOCK_ADS</text>
+    <text class="cardSub" x="30" y="151">direct websocket connect</text>
+  </g>
+
+  <g transform="translate(900,800)">
+    <rect class="card" x="0" y="0" width="390" height="178" rx="15"/>
+    <text class="cardTitle" x="195" y="40" text-anchor="middle">hyperbrowser</text>
+    <text class="mono" x="30" y="86">HYPERBROWSER_API_KEY</text>
+    <text class="cardSub" x="30" y="119">API_URL</text>
+    <text class="cardSub" x="30" y="151">stops session on close</text>
+  </g>
+
+  <g transform="translate(1320,800)">
+    <rect class="card" x="0" y="0" width="420" height="178" rx="15"/>
+    <text class="cardTitle" x="210" y="40" text-anchor="middle">explicit override</text>
+    <text class="mono" x="30" y="86">PI_BROWSE_PROVIDER</text>
+    <text class="cardSub" x="30" y="119">chrome | steel | browserbase | ...</text>
+    <text class="cardSub" x="30" y="151">legacy: PI_BROWSE_BACKEND</text>
+  </g>
+
+  <line class="dash" x1="120" y1="1066" x2="1680" y2="1066"/>
+
+  <!-- Legend -->
+  <g transform="translate(120,1105)">
+    <rect x="0" y="0" width="28" height="28" rx="6" fill="#ecebff" stroke="#5549bd"/>
+    <text class="legend" x="45" y="24">Tool schema (single stable param: code)</text>
+
+    <rect x="0" y="52" width="28" height="28" rx="6" fill="#e3f7f0" stroke="#0b8878"/>
+    <text class="legend" x="45" y="76">Provider configuration (env vars, not tool params)</text>
+
+    <rect x="0" y="104" width="28" height="28" rx="6" fill="#fff0eb" stroke="#c25d3c"/>
+    <text class="legend" x="45" y="128">Router behavior (auto-detects provider; one agent-facing tool)</text>
+  </g>
+
+  <!-- Bottom callout -->
+  <g transform="translate(120,1280)">
+    <rect class="noteBox" x="0" y="0" width="1560" height="220" rx="20"/>
+    <text class="noteTitle" x="780" y="48" text-anchor="middle">What changes between providers?</text>
+    <text class="noteText" x="40" y="98">Only where the browser runs. The agent still calls execute_browsemode({ code }) and uses the same sandbox:</text>
+    <text class="noteText" x="40" y="138">api.list / api.describe / page.goto / page.scan / page.list / page.&lt;element&gt;.&lt;verb&gt; / page.tabs.*</text>
+    <text class="noteText" x="40" y="178">Cloud providers create a remote Chromium session and browsemode connects over CDP, just like local Chrome.</text>
+  </g>
+
+  <text class="tiny" x="900" y="1585" text-anchor="middle">Same tiny schema. Provider complexity stays behind the router.</text>
+</svg>
