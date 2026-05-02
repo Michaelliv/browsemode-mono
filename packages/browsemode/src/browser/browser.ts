@@ -126,6 +126,48 @@ export class Browser {
 
   // ── lifecycle ─────────────────────────────────────
 
+  private async attachWatchdogs(watchdogs: Watchdog[]): Promise<void> {
+    for (const wd of watchdogs) {
+      try {
+        const detach = await wd.attach(this);
+        this._watchdogDetachers.push(detach);
+        this.bus.emit({ kind: "watchdog.attached", name: wd.name });
+      } catch (e: any) {
+        this.bus.emit({
+          kind: "watchdog.error",
+          name: wd.name,
+          reason: `attach failed: ${e?.message ?? e}`,
+        });
+      }
+    }
+  }
+
+  static async connectWebSocket(
+    browserWsUrl: string,
+    opts: BrowserOpts = {},
+  ): Promise<Browser> {
+    const cfg = getConfig();
+    const b = new Browser();
+    b.id = opts.id ?? cfg.defaultBrowserId;
+    b._browserWsUrl = browserWsUrl;
+    b.cdp = await CDP.connect(browserWsUrl);
+    const version = await b.cdp
+      .send<{ product?: string }>("Browser.getVersion", {})
+      .catch(() => ({ product: "" }));
+    b.product = version.product ?? "";
+    b.isObscura = /obscura/i.test(b.product);
+    b.shimEnabled =
+      opts.shim ??
+      (cfg.defaults.shim === "auto" ? b.isObscura : cfg.defaults.shim);
+    b.stealthEnabled = opts.stealth ?? cfg.defaults.stealth;
+    b.bus = opts.bus ?? new Bus();
+    b.settleMs = opts.settleMs ?? cfg.defaults.settleMs;
+
+    const watchdogs = opts.watchdogs ?? defaultWatchdogs();
+    await b.attachWatchdogs(watchdogs);
+    return b;
+  }
+
   static async connect(opts: BrowserOpts = {}): Promise<Browser> {
     const cfg = getConfig();
     const host = opts.host ?? "localhost";
@@ -171,19 +213,7 @@ export class Browser {
     // Install watchdogs after CDP is up but before any page exists,
     // so the page.created emission for the first newPage() reaches them.
     const watchdogs = opts.watchdogs ?? defaultWatchdogs();
-    for (const wd of watchdogs) {
-      try {
-        const detach = await wd.attach(b);
-        b._watchdogDetachers.push(detach);
-        b.bus.emit({ kind: "watchdog.attached", name: wd.name });
-      } catch (e: any) {
-        b.bus.emit({
-          kind: "watchdog.error",
-          name: wd.name,
-          reason: `attach failed: ${e?.message ?? e}`,
-        });
-      }
-    }
+    await b.attachWatchdogs(watchdogs);
     return b;
   }
 

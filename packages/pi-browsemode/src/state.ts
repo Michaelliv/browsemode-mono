@@ -11,6 +11,7 @@
 // isolated.
 
 import { Browsemode, type Browser } from "browsemode";
+import { resolveBrowserProvider } from "./providers.js";
 
 export const DEFAULT_BROWSER_ID =
   process.env.PI_BROWSE_BROWSER_ID ?? "pi-browse";
@@ -49,24 +50,24 @@ export async function attachBrowser(): Promise<Browser> {
  * fresh primary at about:blank. The agent navigates wherever it
  * wants once it has the handle.
  *
- * Backend selection via PI_BROWSE_BACKEND:
- *   - "chrome" (default): spawn the managed Chrome.
- *   - "obscura": try obscura on PI_BROWSE_OBSCURA_PORT, fall back
- *     to managed Chrome if obscura isn't reachable.
- *
- * The eval pi runner sets this from the orchestrator's --backend
- * flag so obscura evals still exercise obscura explicitly.
+ * Provider selection mirrors pi-websearch's router pattern:
+ *   - PI_BROWSE_PROVIDER=chrome|obscura|remote-cdp selects explicitly.
+ *   - Legacy PI_BROWSE_BACKEND is still accepted as an alias.
+ *   - Without either, remote-cdp wins when its env vars are present,
+ *     otherwise managed Chrome is used.
  */
 export async function ensureBrowser(): Promise<Browser> {
+  const provider = resolveBrowserProvider();
   if (_browser) {
-    if (isExpectedBackend(_browser) && (await isUsable(_browser)))
+    if (provider.accepts(_browser) && (await isUsable(_browser))) {
       return _browser;
+    }
     await _browser.close().catch(() => undefined);
     _browser = null;
   }
   try {
     const restored = await Browsemode.restore(_browserId);
-    if (isExpectedBackend(restored) && (await isUsable(restored))) {
+    if (provider.accepts(restored) && (await isUsable(restored))) {
       _browser = restored;
       return _browser;
     }
@@ -74,21 +75,8 @@ export async function ensureBrowser(): Promise<Browser> {
   } catch {
     // No usable snapshot — open fresh.
   }
-  const backend = process.env.PI_BROWSE_BACKEND ?? "chrome";
-  if (backend === "obscura") {
-    try {
-      _browser = await Browsemode.connect({
-        id: _browserId,
-        port: Number.parseInt(process.env.PI_BROWSE_OBSCURA_PORT ?? "9333", 10),
-      });
-      await _browser.newPage();
-      return _browser;
-    } catch {
-      // obscura not up; fall through to Chrome.
-    }
-  }
-  _browser = await Browsemode.launch({ id: _browserId });
-  await _browser.newPage();
+
+  _browser = await provider.open(_browserId);
   return _browser;
 }
 
@@ -123,15 +111,6 @@ export async function closeBrowser(): Promise<void> {
 
 export function currentBrowser(): Browser | null {
   return _browser;
-}
-
-function isExpectedBackend(browser: Browser): boolean {
-  const backend = process.env.PI_BROWSE_BACKEND ?? "chrome";
-  // Obscura mode intentionally falls back to Chrome when Obscura is
-  // unavailable; keep that fallback handle across calls instead of closing it
-  // and retrying Obscura forever.
-  if (backend === "obscura") return true;
-  return !/obscura/i.test(browser.product);
 }
 
 async function isUsable(browser: Browser): Promise<boolean> {

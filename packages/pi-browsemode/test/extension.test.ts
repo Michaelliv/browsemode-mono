@@ -117,6 +117,82 @@ describe("pi-browsemode extension", () => {
   });
 });
 
+describe("browser providers", () => {
+  const savedEnv: Record<string, string | undefined> = {};
+  const keys = [
+    "PI_BROWSE_PROVIDER",
+    "PI_BROWSE_BACKEND",
+    "PI_BROWSE_CDP_WS_URL",
+    "PI_BROWSE_CDP_HOST",
+    "PI_BROWSE_CDP_PORT",
+    "PI_BROWSE_OBSCURA_PORT",
+    "STEEL_API_KEY",
+    "BROWSERBASE_API_KEY",
+    "BROWSERLESS_API_TOKEN",
+    "HYPERBROWSER_API_KEY",
+  ];
+
+  function clearProviderEnv() {
+    for (const key of keys) {
+      savedEnv[key] = process.env[key];
+      delete process.env[key];
+    }
+  }
+
+  function restoreProviderEnv() {
+    for (const key of keys) {
+      const value = savedEnv[key];
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+  }
+
+  it("defaults to managed Chrome", async () => {
+    clearProviderEnv();
+    try {
+      const { resolveBrowserProvider } = await import("../src/providers.js");
+      expect(resolveBrowserProvider().name).toBe("chrome");
+    } finally {
+      restoreProviderEnv();
+    }
+  });
+
+  it("auto-selects remote CDP when a websocket URL is configured", async () => {
+    clearProviderEnv();
+    try {
+      process.env.PI_BROWSE_CDP_WS_URL =
+        "ws://127.0.0.1:9222/devtools/browser/test";
+      const { resolveBrowserProvider } = await import("../src/providers.js");
+      expect(resolveBrowserProvider().name).toBe("remote-cdp");
+    } finally {
+      restoreProviderEnv();
+    }
+  });
+
+  it("auto-selects cloud browser providers by API key priority", async () => {
+    clearProviderEnv();
+    try {
+      process.env.BROWSERBASE_API_KEY = "fake";
+      process.env.STEEL_API_KEY = "fake";
+      const { resolveBrowserProvider } = await import("../src/providers.js");
+      expect(resolveBrowserProvider().name).toBe("steel");
+    } finally {
+      restoreProviderEnv();
+    }
+  });
+
+  it("accepts the legacy PI_BROWSE_BACKEND alias", async () => {
+    clearProviderEnv();
+    try {
+      process.env.PI_BROWSE_BACKEND = "obscura";
+      const { resolveBrowserProvider } = await import("../src/providers.js");
+      expect(resolveBrowserProvider().name).toBe("obscura");
+    } finally {
+      restoreProviderEnv();
+    }
+  });
+});
+
 describe("primer", () => {
   it("buildPrimer mentions the tool, the discovery helpers, and the browser id", async () => {
     const { buildPrimer } = await import("../src/primer.js");

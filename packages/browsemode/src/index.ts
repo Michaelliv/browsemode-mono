@@ -102,6 +102,7 @@ import { Page } from "./page/page.js";
  * config and persistence helpers.
  *
  *   Browsemode.connect({ port: 9333 })            — attach to running CDP
+ *   Browsemode.connectWebSocket(wsUrl)             — attach to remote browser WS
  *   Browsemode.launch()                            — start managed Chrome
  *   Browsemode.openWithFallback({ url, primary }) — try primary, fall back
  *   Browsemode.restore("research")                 — reattach by id
@@ -112,6 +113,8 @@ import { Page } from "./page/page.js";
  */
 export const Browsemode = {
   connect: (opts?: BrowserOpts) => Browser.connect(opts),
+  connectWebSocket: (browserWsUrl: string, opts?: BrowserOpts) =>
+    Browser.connectWebSocket(browserWsUrl, opts),
   launch: (opts?: BrowserOpts) => Browser.launch(opts),
   openWithFallback: (opts: OpenWithFallbackOpts): Promise<OpenResult> =>
     openWithFallback(opts),
