@@ -193,10 +193,6 @@ CI runs tests, typecheck, and lint on every push.
 
 For agents working in this repo, see [AGENTS.md](AGENTS.md) for architecture, conventions, and how to add new verbs and CLI commands.
 
-## Status
-
-The SDK and CLI are stable enough to drive real flows; the watchdog scaffold (popups, downloads) is in place; the pi provider router has been smoke-tested against Steel, Browserbase, Browserless, and Hyperbrowser. Anti-bot defenses such as Cloudflare TLS fingerprinting and canvas-heavy UIs are known gaps unless you run through a provider that handles them.
-
 
 ## License
 
