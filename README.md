@@ -162,7 +162,7 @@ ENV BROWSEMODE_DEFAULT_BROWSER_ID=container-1
 | Sandbox | QuickJS | none | none | none |
 | Persistence | id-keyed snapshots | session dir | profile dir | profile dir |
 
-This is not a "better than" claim. The right tool depends on the workload. browsemode is built for agents that already speak code well and want a low-token, deterministic surface where one block of JS replaces a chain of tool calls.
+browsemode is built for agents that already speak code well: one sandboxed JavaScript block, named elements, deterministic dispatch, low token overhead.
 
 ## Repo layout
 
@@ -173,9 +173,21 @@ packages/browsemode/    SDK + CLI (this is what most users want)
 packages/pi-browsemode/ pi extension: one tool, provider router, in-sandbox discovery
 ```
 
-`pi-browsemode` is a [pi](https://pi.dev) extension. It registers a single tool, `execute_browsemode`, that runs JavaScript in browsemode's sandbox against a real browser. The browser persists across tool calls; element discovery (`api.list()`, `api.describe(path)`, `page.list()`, `page.find(query)`, `page.describe(name)`) lives inside the sandbox, so the agent's system prompt stays small. Lives at `packages/pi-browsemode/.pi/extensions/browsemode/index.ts`.
+`pi-browsemode` is the pi extension for this repo. It gives pi one tool: `execute_browsemode`.
 
-The pi package follows the same router pattern as `pi-websearch`: one stable agent-facing schema, provider complexity behind environment variables. By default it launches managed Chrome. Set `STEEL_API_KEY`, `BROWSERBASE_API_KEY`, `BROWSERLESS_API_TOKEN`, `HYPERBROWSER_API_KEY`, or `PI_BROWSE_CDP_WS_URL` to route the same tool to a hosted/remote browser. Force a provider with `PI_BROWSE_PROVIDER=chrome|remote-cdp|steel|browserbase|browserless|hyperbrowser`. `obscura` remains available as an experimental provider for local lightweight testing.
+Inside that tool, the agent writes JavaScript against a persistent browser. Discovery happens in the sandbox, so the prompt stays small: `api.list()` shows callable paths, while `page.list()`, `page.find(query)`, and `page.describe(name)` inspect the current page.
+
+By default it launches managed Chrome. Set one provider key to run the same tool on a hosted browser instead:
+
+| Provider | Env var |
+|---|---|
+| Steel | `STEEL_API_KEY` |
+| Browserbase | `BROWSERBASE_API_KEY` |
+| Browserless | `BROWSERLESS_API_TOKEN` |
+| Hyperbrowser | `HYPERBROWSER_API_KEY` |
+| Any CDP browser | `PI_BROWSE_CDP_WS_URL` |
+
+Force a provider with `PI_BROWSE_PROVIDER=chrome|remote-cdp|steel|browserbase|browserless|hyperbrowser`. Obscura is still available as an experimental local provider.
 
 ![pi-browsemode schema](packages/pi-browsemode/schemas.png)
 
