@@ -8,7 +8,7 @@
 // Injected via Page.addScriptToEvaluateOnNewDocument so it runs before
 // every page script. Safe on both Chrome and obscura.
 
-export const STEALTH_SCRIPT = String.raw`
+export const STEALTH_SCRIPT = `
 (function () {
   if (typeof window === 'undefined') return;
   if (window.__browsemode_stealth_v1) return;

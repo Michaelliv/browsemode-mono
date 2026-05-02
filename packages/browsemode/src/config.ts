@@ -163,7 +163,7 @@ function fromEnv(): BrowsemodeConfig {
         process.env.BROWSEMODE_USER_AGENT ??
         "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
       shim: noShim === true ? false : "auto",
-      stealth: noStealth === true ? false : true,
+      stealth: noStealth !== true,
     },
     cookies: {
       userDataDir: process.env.BROWSEMODE_CHROME_USER_DATA_DIR,

@@ -21,6 +21,11 @@ export interface ElementInfo {
   kind: ElementKind;
   /** Trimmed, single-line preview of the element's text content. */
   text: string;
+  /**
+   * Raw DOM/accessibility signals used for ranking and debugging element
+   * discovery. These are evidence from the page, not agent-facing names.
+   */
+  signals?: Record<string, string>;
   /** Verbs callable on this element (`click`, `fill`, etc). */
   verbs: string[];
   /**

@@ -13,8 +13,16 @@ budget:
 # after each navigation so the search input survives.
 script: |
   await page.scan();
-  await page.searchInput.fill("Tim Berners-Lee");
-  await page.searchInput.press("Enter");
+  const initial = await page.list();
+  if (!initial.includes("searchWikipediaInput") && initial.includes("searchWikipediaCtrlOptionFLink")) {
+    await page.searchWikipediaCtrlOptionFLink.click();
+    await page.waitFor({ stable: { forMs: 500 } });
+    await page.scan();
+  }
+  const input = (await page.list()).find((n) => n === "searchInput" || n === "searchWikipediaInput" || /search.*input/i.test(n));
+  if (!input) throw new Error("Wikipedia search input not found");
+  await page[input].fill("Tim Berners-Lee");
+  await page[input].press("Enter");
   await page.waitFor({ stable: { forMs: 1500 } });
   return await page.title();
 

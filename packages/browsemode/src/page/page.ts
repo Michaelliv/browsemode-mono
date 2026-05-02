@@ -187,16 +187,21 @@ export class Page {
             : this.mainFrame.session;
         result = await handler(session, el, args);
         shouldRescan = NAVIGATING_ELEMENT_VERBS.has(verb);
-      } else if (this.collections.has(name)) {
-        result = collectionVerb(this.collections.get(name)!, name, verb, args);
       } else {
-        const elsSample = [...this.elements.keys()].slice(0, 6).join(", ");
-        const collsSample = [...this.collections.keys()].slice(0, 6).join(", ");
-        throw new Error(
-          `Unknown name: '${name}'. ` +
-            `Elements: ${elsSample}\u2026 ` +
-            `Collections: ${collsSample || "(none)"}`,
-        );
+        const collection = this.collections.get(name);
+        if (collection) {
+          result = collectionVerb(collection, name, verb, args);
+        } else {
+          const elsSample = [...this.elements.keys()].slice(0, 6).join(", ");
+          const collsSample = [...this.collections.keys()]
+            .slice(0, 6)
+            .join(", ");
+          throw new Error(
+            `Unknown name: '${name}'. ` +
+              `Elements: ${elsSample}\u2026 ` +
+              `Collections: ${collsSample || "(none)"}`,
+          );
+        }
       }
     } else {
       throw new Error(`Bad action path: ${path}`);

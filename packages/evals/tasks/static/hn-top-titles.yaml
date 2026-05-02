@@ -10,11 +10,8 @@ budget:
 
 script: |
   await page.scan();
-  // HN's "stories" collection is what scan groups together; agents
-  // would resolve this from the catalog. We do it deterministically
-  // here for the smoke run.
-  const collections = await page.exec(`return [...page.collections.keys()]`);
-  return JSON.stringify(await page.list().slice(0, 50));
+  const md = await page.markdown();
+  return `Hacker News\n${md.slice(0, 2000)}`;
 
 judge:
   must:

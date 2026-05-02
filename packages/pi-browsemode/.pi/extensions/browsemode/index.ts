@@ -5,7 +5,7 @@
 // across tool calls so the agent can chain navigations like cells
 // in a notebook.
 
-import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
+import { type ExtensionAPI, keyHint } from "@mariozechner/pi-coding-agent";
 import { Markdown, Text } from "@mariozechner/pi-tui";
 import { Type } from "@sinclair/typebox";
 import { buildPrimer } from "../../../src/primer.js";
@@ -89,13 +89,6 @@ export default function (pi: ExtensionAPI) {
         display: true,
       });
     }
-
-    if (ctx.hasUI) {
-      ctx.ui.setStatus(
-        "browsemode",
-        ctx.ui.theme.fg("dim", `🦾 browsemode: ${browserId} (idle)`),
-      );
-    }
   });
 
   pi.on("session_shutdown", async () => {
@@ -112,76 +105,94 @@ export default function (pi: ExtensionAPI) {
     name: "execute_browsemode",
     label: "Browsemode",
     description: [
-      "Drive a real browser. Your `code` runs as the body of an async function inside a small sandbox. The sandbox exposes one global, `page`, which talks to the browser through named verbs.",
+      "Drive a real browser. Your `code` runs as the body of an async function inside a small sandbox. The sandbox exposes two globals: `page` (the browser handle) and `api` (live introspection of every callable surface).",
       "",
       "Rules:",
       "- Every `page.*` call is async. You MUST `await` every one. Forgetting returns a Promise (or a function reference) which serializes as undefined.",
       "- End with `return <value>` to surface the result. There is no implicit return.",
       "- The browser persists across tool calls. Tabs, scroll position, cookies are kept; treat each call as a notebook cell continuing the same kernel.",
-      "- There is no `document`, no `window`, no `eval`. You are not running INSIDE the page; you are talking to the page through named verbs only.",
+      "- There is no `document`, no `window`, no `eval`. You are not running INSIDE the page; you talk to the page through `page.<verb>` and `page.<elementName>.<verb>` calls only.",
       "",
-      "Discovery (always before guessing element names):",
-      "  await page.list()                   // every element name",
-      "  await page.find('login')            // ranked fuzzy search",
-      "  await page.describe('loginButton')  // verbs + kind + role + text",
+      "Discover the surface (do this when in doubt instead of guessing):",
+      "  await api.list()                       // every callable path right now",
+      "  await api.list('page')                 // page-level verbs only",
+      "  await api.list('element')              // every <elementName>.<verb> path",
+      "  await api.find('submit')               // ranked fuzzy search by path + description",
+      "  await api.describe('page.scroll')      // {description, signature, inputs, examples}",
+      "  await api.check('page.scroll', { dy: 500 })   // validate args BEFORE calling",
       "",
-      "Driving the page:",
+      "  await page.markdown()                  // human-readable page text; inspect after navigation",
+      "  await page.list()                      // element names on the current page",
+      "  await page.find('login')               // search elements by name+text; not a substitute for page.list()",
+      "  await page.describe('loginButton')     // element details: kind, verbs, text, role",
+      "",
+      "Recommended first read after navigation:",
       "  await page.goto(url)",
-      "  await page.scan()                   // refresh the catalog after dynamic content",
+      "  await page.scan()",
+      "  return { title: await page.title(), url: await page.url(), elements: (await page.list()).slice(0, 50), markdown: (await page.markdown()).slice(0, 4000) }",
+      "",
+      "Drive the page:",
+      "  await page.goto(url)",
+      "  await page.scan()                      // refresh after dynamic content",
       "  await page.<elementName>.click()",
       "  await page.<elementName>.fill(value)",
-      "  await page.<formName>.submit()      // the FORM, not the submit button",
+      "  await page.waitFor({ stable: { forMs: 500 } })",
+      "  await page.scan()                      // after fills/clicks that open suggestions, modals, menus, hidden fields",
+      "  await page.<formName>.submit()         // the FORM, not the submit button",
       "  await page.waitFor({ stable: { forMs: 1000 } })",
-      "  await page.scroll({ direction: 'down' })  // also: { dy }, { y }, { to: 'bottom'|'top' }",
+      "  await page.scroll({ direction: 'down' })  // also { dy }, { y }, { to: 'bottom'|'top' }",
       "",
-      "Reading content:",
+      "Read content:",
       "  await page.title()",
       "  await page.url()",
-      "  await page.markdown()               // clean text view, prefer this for content extraction",
-      "  await page.html()                   // raw HTML if you really need it",
+      "  await page.markdown()                  // clean text view, prefer this for content extraction",
+      "  await page.html()                      // raw HTML if you really need it",
       "",
-      "Tabs:",
-      "  await page.tabs.list() / open(url) / switch(id) / close(id)",
+      "Tabs:  await page.tabs.list() / open(url) / switch(id) / close(id)",
       "",
       "Tiny example:",
       "  await page.goto('https://news.ycombinator.com');",
-      "  return (await page.list()).slice(0, 10);",
+      "  await page.scan();",
+      "  return { elements: (await page.list()).slice(0, 20), markdown: (await page.markdown()).slice(0, 2000) };",
       "",
       "Honest reporting (this matters for grading):",
-      "- When you produce a final answer for a user, ALWAYS include the URL you got the information from and a short verbatim quote from `page.markdown()` or `page.html()` that supports your answer. Treat your reply like a citation: claim, source URL, supporting quote.",
-      "- If you cannot find the requested information after honest browsing, say so explicitly (\u201cI could not find X on this site\u201d). Do NOT substitute a different topic, do NOT fill in plausible-sounding details from prior knowledge. An honest 'I couldn't find it' is the correct answer when the page doesn't have what was asked.",
+      "- When you produce a final answer, ALWAYS include the URL you got it from and a short verbatim quote from `page.markdown()` or `page.html()` that supports your answer. Treat your reply like a citation: claim, source URL, supporting quote.",
+      "- If you cannot find the requested information after honest browsing, say so explicitly. Do NOT substitute a different topic, do NOT fill in plausible-sounding details from prior knowledge. An honest 'I couldn't find it' is the correct answer when the page doesn't have what was asked.",
       "- Never invent URLs, never invent quoted text. If you didn't read it from a `page.*` call in this session, don't put it in your answer.",
     ].join("\n"),
     promptSnippet:
       "Drive a real browser via a tiny sandbox. Use `page.find(query)` / `page.describe(name)` to discover, `await page.<name>.<verb>()` to act, `return <value>` to surface results.",
+    renderCall(args, theme, context) {
+      const code = typeof args.code === "string" ? args.code.trim() : "";
+      const title = theme.fg("toolTitle", theme.bold("execute_browsemode "));
+      if (!context.expanded) {
+        const preview = code.replace(/\s+/g, " ").slice(0, 120);
+        const suffix = code.length > 120 ? "…" : "";
+        return new Text(
+          title +
+            theme.fg("accent", preview || "(empty)") +
+            suffix +
+            theme.fg("dim", ` (${keyHint("app.tools.expand", "to expand")})`),
+          0,
+          0,
+        );
+      }
+      return new Text(
+        `${title + theme.fg("dim", "code")}\n${theme.fg("accent", code)}`,
+        0,
+        0,
+      );
+    },
     parameters: Type.Object({
       code: Type.String({
         description:
           "JavaScript body. The `page` global is bound to the active tab. Every `page.*` call is async; `await` each one. End with `return <value>`.",
       }),
     }),
-    async execute(_id, params, _signal, _onUpdate, ctx) {
+    async execute(_id, params, _signal, _onUpdate, _ctx) {
       const browser = await ensureBrowser();
 
-      // Update the status line with the current URL so the human
-      // operator can see what the agent is doing.
-      const urlBefore = browser.activePage?.url ?? "";
-      if (ctx.hasUI) {
-        ctx.ui.setStatus(
-          "browsemode",
-          ctx.ui.theme.fg("dim", `🦾 ${getBrowserId()}: ${urlBefore}`),
-        );
-      }
-
       const result = await browser.exec(params.code);
-
-      const urlAfter = browser.activePage?.url ?? "";
-      if (ctx.hasUI && urlAfter && urlAfter !== urlBefore) {
-        ctx.ui.setStatus(
-          "browsemode",
-          ctx.ui.theme.fg("dim", `🦾 ${getBrowserId()}: ${urlAfter}`),
-        );
-      }
 
       const logs = result.logs?.length
         ? `\n\nLogs:\n${result.logs.join("\n")}`
@@ -259,12 +270,6 @@ export default function (pi: ExtensionAPI) {
     handler: async (_args, ctx) => {
       await closeBrowser();
       ctx.ui.notify(`browsemode '${getBrowserId()}' closed`, "info");
-      if (ctx.hasUI) {
-        ctx.ui.setStatus(
-          "browsemode",
-          ctx.ui.theme.fg("dim", `🦾 browsemode: ${getBrowserId()} (idle)`),
-        );
-      }
     },
   });
 }

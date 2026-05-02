@@ -67,6 +67,15 @@ const WEBSITE_URLS: Record<string, string> = {
   walmart: "https://www.walmart.com/",
   target: "https://www.target.com/",
   ebay: "https://www.ebay.com/",
+  espn: "https://www.espn.com/",
+  newegg: "https://www.newegg.com/",
+  resy: "https://resy.com/",
+  kayak: "https://www.kayak.com/",
+  gamestop: "https://www.gamestop.com/",
+  uniqlo: "https://www.uniqlo.com/us/en/",
+  budget: "https://www.budget.com/",
+  enterprise: "https://www.enterprise.com/",
+  spothero: "https://spothero.com/",
 };
 
 function urlFor(website: string): string {

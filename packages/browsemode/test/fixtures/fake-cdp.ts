@@ -50,7 +50,7 @@ export class FakeCDP {
       this.listeners.set(event, s);
     }
     s.add(fn);
-    return () => s!.delete(fn);
+    return () => s.delete(fn);
   }
 
   /** Test helper: deliver an event to subscribers. */

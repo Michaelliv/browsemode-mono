@@ -34,7 +34,7 @@ export class PopupsWatchdog implements Watchdog {
     const offs: Array<() => void> = [];
     const armed = new Set<string>(); // sessionIds we've already wired
 
-    const armSession = async (sessionId: string, targetId: string) => {
+    const armSession = async (sessionId: string) => {
       if (armed.has(sessionId)) return;
       armed.add(sessionId);
 
@@ -107,14 +107,14 @@ export class PopupsWatchdog implements Watchdog {
     // Arm every existing page (the Browser may already have tabs
     // when the watchdog attaches, e.g. on Browsemode.restore).
     for (const p of browser.pages.values()) {
-      await armSession(p.mainFrame.session.id, p.targetId);
+      await armSession(p.mainFrame.session.id);
     }
 
     // Wire newly-created pages.
     const offCreated = browser.bus.on("page.created", (e) => {
       // Don't await — fire-and-forget. Page.enable failure is
       // non-fatal and we don't want to block page creation.
-      void armSession(e.sessionId, e.targetId);
+      void armSession(e.sessionId);
     });
     offs.push(offCreated);
 

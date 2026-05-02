@@ -82,6 +82,7 @@ class PiRunner implements Runner {
     const steps: Array<{ kind: string; detail?: string }> = [];
     const events: any[] = [];
     let finalText: string | null = null;
+    let agentError: string | null = null;
 
     client.on((e) => {
       events.push(e);
@@ -101,6 +102,14 @@ class PiRunner implements Runner {
             detail: clip(extractText(e.result?.content)),
           });
           break;
+        case "message_end":
+        case "turn_end": {
+          const msg = e.message;
+          if (msg?.role === "assistant" && msg.errorMessage) {
+            agentError = msg.errorMessage;
+          }
+          break;
+        }
         case "extension_error":
           steps.push({
             kind: "extension_error",
@@ -123,9 +132,20 @@ class PiRunner implements Runner {
 
     try {
       const taskPrompt = buildTaskPrompt(ctx);
-      const agentEnd = waitForEvent(client, "agent_end", ctx.signal);
+      const agentEndPromise = waitForEvent<any>(
+        client,
+        "agent_end",
+        ctx.signal,
+      );
       await client.send("prompt", { message: taskPrompt });
-      await agentEnd;
+      const agentEnd = await agentEndPromise;
+      const lastMessage = Array.isArray(agentEnd?.messages)
+        ? agentEnd.messages[agentEnd.messages.length - 1]
+        : null;
+      if (lastMessage?.role === "assistant" && lastMessage.errorMessage) {
+        agentError = lastMessage.errorMessage;
+      }
+      if (agentError) throw new Error(`pi agent failed: ${agentError}`);
 
       const last = await client
         .send<{ text: string | null }>("get_last_assistant_text")

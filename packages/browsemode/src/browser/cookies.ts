@@ -22,7 +22,6 @@ import { createDecipheriv, createHash, pbkdf2Sync } from "node:crypto";
 import {
   chmodSync,
   copyFileSync,
-  createReadStream,
   existsSync,
   mkdirSync,
   mkdtempSync,

@@ -82,7 +82,7 @@ export class Bus {
     }
     set.add(fn as unknown as BusListener);
     return () => {
-      set!.delete(fn as unknown as BusListener);
+      set.delete(fn as unknown as BusListener);
     };
   }
 

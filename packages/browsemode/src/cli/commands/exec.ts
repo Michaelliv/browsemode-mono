@@ -74,11 +74,12 @@ export async function execCmd(
 
     const r = await browser.exec(body);
     if (r.error) {
+      const error = r.error;
       output(opts, {
-        json: () => ({ error: r.error, logs: r.logs }),
+        json: () => ({ error, logs: r.logs }),
         human: () => {
           for (const l of r.logs) lineOut(l);
-          renderError({ message: r.error! }, opts);
+          renderError({ message: error }, opts);
         },
       });
       browser.snapshot();

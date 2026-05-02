@@ -10,6 +10,13 @@ budget:
   maxSteps: 6
   timeoutSec: 90
 
+script: |
+  await page.scan();
+  const md = await page.markdown();
+  const marker = "From today's featured article";
+  const idx = md.indexOf(marker);
+  return idx >= 0 ? `Wikipedia ${md.slice(idx, idx + 1200)}` : `Wikipedia ${md.slice(0, 1200)}`;
+
 judge:
   # Featured article rotates daily, so the substring judge can't
   # match a specific title. The pi judge can still grade this

@@ -148,15 +148,19 @@ export const Browsemode = {
     // Build the Browser by hand — we want the saved WebSocket URL exactly
     // (Chrome's UUID path may change across restarts; we trust the snapshot).
     const cdp = await CDP.connect(snapshot.browserWsUrl);
+    const isObscura = /obscura/i.test(snapshot.product);
+    const cfg = getConfig();
+    const shimEnabled =
+      cfg.defaults.shim === "auto" ? isObscura : cfg.defaults.shim;
     const b = Object.assign(Object.create(Browser.prototype), {
       id,
       product: snapshot.product,
-      isObscura: /obscura/i.test(snapshot.product),
-      shimEnabled: snapshot.shimEnabled,
+      isObscura,
+      shimEnabled,
       stealthEnabled: true,
       cdp,
       bus: new Bus(),
-      settleMs: getConfig().defaults.settleMs,
+      settleMs: cfg.defaults.settleMs,
       _browserWsUrl: snapshot.browserWsUrl,
       _host: snapshot.host,
       _port: snapshot.port,
@@ -174,8 +178,17 @@ export const Browsemode = {
         .catch(() => null);
       if (!attach) continue; // closed externally; skip
       const session = new Session(cdp, attach.sessionId);
+      // A restored tab may have been created by an older browsemode build
+      // with preloads that monkey-patched the page. Reloading after restore
+      // runs the current preload set and clears stale in-page patches. This
+      // mirrors normal browser automation restore semantics: keep the tab URL,
+      // not the old injected JS world.
+      await session
+        .send("Page.reload", { ignoreCache: true })
+        .catch(() => undefined);
+      await new Promise((r) => setTimeout(r, cfg.defaults.settleMs));
       const page = await Page._create(b, tab.targetId, session, {
-        settleMs: getConfig().defaults.settleMs,
+        settleMs: cfg.defaults.settleMs,
         autoScan: true,
       });
       page.url = tab.url;

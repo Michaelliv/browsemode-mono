@@ -7,9 +7,17 @@ import { Session } from "../src/cdp/session.js";
 import { refreshFrames } from "../src/page/frame.js";
 import { asCdp, FakeCDP } from "./fixtures/fake-cdp.js";
 
-function setup(targets: any[], existing: Map<string, any> = new Map()) {
+function setup(
+  targets: any[],
+  existing: Map<string, any> = new Map(),
+  frameTree: any = {
+    frame: { id: "MAIN-FRAME" },
+    childFrames: [{ frame: { id: "CHILD-FRAME" } }],
+  },
+) {
   const bus = new Bus();
   const cdp = new FakeCDP({
+    "Page.getFrameTree": () => ({ frameTree }),
     "Target.getTargets": () => ({ targetInfos: targets }),
     "Target.attachToTarget": (params: any) => ({
       sessionId: `S-${params.targetId}`,
@@ -37,14 +45,47 @@ function setup(targets: any[], existing: Map<string, any> = new Map()) {
 describe("refreshFrames", () => {
   it("attaches to new iframe targets and registers them on the page", async () => {
     const { page } = setup([
-      { type: "iframe", targetId: "F1", url: "https://child.example.com/x" },
-      { type: "iframe", targetId: "F2", url: "https://other.example.com/y" },
+      {
+        type: "iframe",
+        targetId: "F1",
+        parentFrameId: "MAIN-FRAME",
+        url: "https://child.example.com/x",
+      },
+      {
+        type: "iframe",
+        targetId: "F2",
+        parentFrameId: "CHILD-FRAME",
+        url: "https://other.example.com/y",
+      },
       { type: "page", targetId: "MAIN", url: "https://parent.com" },
     ]);
     await refreshFrames(page.browser, page);
     expect(page.iframes.size).toBe(2);
     expect(page.iframes.has("F1")).toBe(true);
     expect(page.iframes.has("F2")).toBe(true);
+  });
+
+  it("does not attach iframe targets from other tabs", async () => {
+    const { cdp, page } = setup([
+      {
+        type: "iframe",
+        targetId: "LOCAL",
+        parentFrameId: "MAIN-FRAME",
+        url: "https://local.example.com",
+      },
+      {
+        type: "iframe",
+        targetId: "FOREIGN",
+        parentFrameId: "OTHER-TAB-FRAME",
+        url: "https://ads.example.com",
+      },
+    ]);
+    await refreshFrames(page.browser, page);
+    expect(page.iframes.has("LOCAL")).toBe(true);
+    expect(page.iframes.has("FOREIGN")).toBe(false);
+    expect(
+      cdp.callsFor("Target.attachToTarget").map((c) => c.params.targetId),
+    ).toEqual(["LOCAL"]);
   });
 
   it("does not re-attach iframes already in the map", async () => {
@@ -59,7 +100,14 @@ describe("refreshFrames", () => {
       ],
     ]);
     const { cdp, page } = setup(
-      [{ type: "iframe", targetId: "F1", url: "u" }],
+      [
+        {
+          type: "iframe",
+          targetId: "F1",
+          parentFrameId: "MAIN-FRAME",
+          url: "u",
+        },
+      ],
       existing,
     );
     await refreshFrames(page.browser, page);
@@ -79,7 +127,9 @@ describe("refreshFrames", () => {
   });
 
   it("registers the shim + stealth scripts on each new iframe session", async () => {
-    const { cdp, page } = setup([{ type: "iframe", targetId: "F1", url: "u" }]);
+    const { cdp, page } = setup([
+      { type: "iframe", targetId: "F1", parentFrameId: "MAIN-FRAME", url: "u" },
+    ]);
     await refreshFrames(page.browser, page);
     const preloads = cdp.callsFor("Page.addScriptToEvaluateOnNewDocument");
     // At least two: shim + stealth.
@@ -90,7 +140,12 @@ describe("refreshFrames", () => {
   it("emits iframe.attached when a new frame is attached", async () => {
     const events: any[] = [];
     const { page, bus } = setup([
-      { type: "iframe", targetId: "F1", url: "https://child.example.com" },
+      {
+        type: "iframe",
+        targetId: "F1",
+        parentFrameId: "MAIN-FRAME",
+        url: "https://child.example.com",
+      },
     ]);
     bus.on("iframe.attached", (e) => events.push(e));
     await refreshFrames(page.browser, page);

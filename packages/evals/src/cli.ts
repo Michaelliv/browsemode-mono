@@ -9,7 +9,7 @@
 // Examples:
 //   browsemode-evals list                                        # YAML tasks
 //   browsemode-evals benchmarks                                  # registered benchmarks
-//   browsemode-evals run                                         # all YAML on obscura
+//   browsemode-evals run                                         # all YAML on chrome
 //   browsemode-evals run --backend both                          # YAML on obscura + chrome
 //   browsemode-evals run hn                                      # filter YAML by name/tag
 //   browsemode-evals run --benchmark webvoyager --limit 10       # 10 WebVoyager tasks
@@ -39,7 +39,7 @@ import type { Backend, EvalTask, Report, ScoredRun } from "./types.js";
 const program = new Command();
 program
   .name("browsemode-evals")
-  .description("Run browsemode eval tasks against obscura and/or Chrome")
+  .description("Run browsemode eval tasks against Chrome and/or obscura")
   .version("0.0.1");
 
 program
@@ -81,7 +81,7 @@ program
   .description(
     "Run tasks (positional filter applies to YAML tasks only; use -f for benchmarks)",
   )
-  .option("-b, --backend <backend>", "obscura | chrome | both", "obscura")
+  .option("-b, --backend <backend>", "chrome | obscura | both", "chrome")
   .option("-r, --runner <id>", "runner implementation", "direct-sdk")
   .option("-j, --judge <id>", "judge: substring | pi", "substring")
   .option("--obscura-port <port>", "obscura CDP port", "9333")

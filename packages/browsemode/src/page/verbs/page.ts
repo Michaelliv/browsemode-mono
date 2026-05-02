@@ -7,6 +7,7 @@
 // and the same ones a TS caller invokes via `page.dispatch(verb, args)`.
 
 import type { Page } from "../page.js";
+import type { VerbSpec } from "./help.js";
 import { sendKey } from "./keyboard.js";
 
 export type PageVerbHandler = (page: Page, args: unknown) => Promise<unknown>;
@@ -16,6 +17,7 @@ export const NAVIGATING_PAGE_VERBS: ReadonlySet<string> = new Set([
   "reload",
   "back",
   "forward",
+  "scan",
   "rescan",
   "press",
 ]);
@@ -61,8 +63,16 @@ export const PAGE_VERBS: Record<string, PageVerbHandler> = {
     return {};
   },
 
-  title: async (page) => page.mainFrame.session.evalString("document.title"),
-  url: async (page) => page.mainFrame.session.evalString("location.href"),
+  title: async (page) => {
+    const title = await page.mainFrame.session.evalString("document.title");
+    page.title = title;
+    return title;
+  },
+  url: async (page) => {
+    const url = await page.mainFrame.session.evalString("location.href");
+    page.url = url;
+    return url;
+  },
   html: async (page) =>
     page.mainFrame.session.evalString("document.documentElement.outerHTML"),
 
@@ -418,13 +428,13 @@ export const PAGE_VERBS: Record<string, PageVerbHandler> = {
           title: string;
           selFound?: boolean;
         }>(probeExpr);
-        if (urlRe && urlRe.test(probe.url))
+        if (urlRe?.test(probe.url))
           return {
             found: probe.url,
             kind: "urlMatches",
             elapsedMs: Date.now() - start,
           };
-        if (titleRe && titleRe.test(probe.title))
+        if (titleRe?.test(probe.title))
           return {
             found: probe.title,
             kind: "titleMatches",
@@ -507,7 +517,9 @@ export const PAGE_VERBS: Record<string, PageVerbHandler> = {
       ]),
     ),
 
-  rescan: async () => ({ triggered: true }), // actual rescan happens after dispatch returns
+  scan: async () => ({ triggered: true }), // actual scan happens after dispatch returns
+
+  rescan: async () => ({ triggered: true }), // backwards-compatible alias
 
   find: async (page, args) => {
     const q = typeof args === "string" ? args : (asObj(args).query ?? "");
@@ -542,3 +554,300 @@ export const PAGE_VERBS: Record<string, PageVerbHandler> = {
 export function pageVerbNames(): string[] {
   return Object.keys(PAGE_VERBS);
 }
+
+/**
+ * Per-verb schemas. Used to build the in-sandbox `api.*` discovery
+ * helpers; not consulted by Page.dispatch (handlers above own that).
+ * Adding a spec here is opt-in; verbs without one show up in
+ * `api.list()` with description "(no spec)".
+ */
+export const PAGE_VERB_SPECS: Record<string, VerbSpec> = {
+  goto: {
+    description: "Navigate the active tab to a URL. Auto-rescans on success.",
+    inputs: {
+      url: { type: "string", required: true, description: "Absolute URL." },
+      waitUntil: {
+        type: "string",
+        description: "Lifecycle event to wait for.",
+        oneOf: ["domcontentloaded", "load", "networkidle0", "networkidle2"],
+      },
+      timeoutMs: {
+        type: "number",
+        description: "Hard cap on the navigate. Default 30000.",
+      },
+    },
+    examples: [
+      'await page.goto("https://example.com")',
+      'await page.goto({ url: "https://example.com", waitUntil: "load" })',
+    ],
+  },
+  reload: {
+    description: "Reload the active tab.",
+    examples: ["await page.reload()"],
+  },
+  title: {
+    description: "Read the page's <title>. Returns a string.",
+    examples: ["const t = await page.title()"],
+  },
+  url: {
+    description: "Read the active page's URL. Returns a string.",
+    examples: ["const u = await page.url()"],
+  },
+  html: {
+    description: "Return document.documentElement.outerHTML as a string.",
+    examples: ["const html = await page.html()"],
+  },
+  markdown: {
+    description:
+      "Convert the live HTML to clean markdown via markit. Use this for content extraction; preferred over html() when you want readable text.",
+    examples: ["const md = await page.markdown()"],
+  },
+  read: {
+    description:
+      "Like markdown(), but tries the URL-first markit pipeline first (/llms.txt, RSS, Wikipedia handlers, etc.) and falls back to live HTML. Returns { markdown, title? }.",
+    examples: ["const { markdown } = await page.read()"],
+  },
+  sections: {
+    description:
+      "Split the page's markdown into sections by heading. Returns an array of { heading, level, markdown }.",
+    examples: ["const secs = await page.sections()"],
+  },
+  rows: {
+    description:
+      "For a scanner-detected collection, render each row as markdown. Returns [{ row: number, markdown: string }].",
+    inputs: {
+      name: {
+        type: "string",
+        required: true,
+        description: "Collection name from page.collections.",
+      },
+    },
+    examples: ['const rows = await page.rows("stories")'],
+  },
+  probe: {
+    description:
+      "Diagnostic: report which DOM/runtime APIs are present (elementFromPoint, IntersectionObserver, fetch, ...). Useful for confirming what works on the current backend.",
+    examples: ["const probe = await page.probe()"],
+  },
+  viewport: {
+    description: "Set the browser viewport size. Returns { width, height }.",
+    inputs: {
+      width: { type: "number", description: "Viewport width. Default 1280." },
+      height: {
+        type: "number",
+        description: "Viewport height. Default 720.",
+      },
+      deviceScaleFactor: {
+        type: "number",
+        description: "DPR. Default 1.",
+      },
+    },
+    examples: ["await page.viewport({ width: 1366, height: 768 })"],
+  },
+  press: {
+    description:
+      "Send a keyboard key to the active page (no element focus required). Pass key names like 'Enter', 'Escape', 'ArrowDown', 'a', 'Control+a'.",
+    inputs: {
+      key: {
+        type: "string",
+        required: true,
+        description: "Key name or modifier+key combo.",
+      },
+    },
+    examples: ['await page.press("Enter")', 'await page.press("Control+a")'],
+  },
+  clickAt: {
+    description: "Click at absolute (x, y) viewport coordinates.",
+    inputs: {
+      x: { type: "number", required: true },
+      y: { type: "number", required: true },
+    },
+    examples: ["await page.clickAt({ x: 200, y: 350 })"],
+  },
+  scroll: {
+    description:
+      "Scroll the page or an element into view. Accepts several shapes; pick whichever matches your intent.",
+    inputs: {
+      y: { type: "number", description: "Scroll to absolute y." },
+      dy: {
+        type: "number",
+        description: "Relative delta y (positive = down).",
+      },
+      to: {
+        type: "string",
+        description: "Endpoint shortcuts.",
+        oneOf: ["bottom", "top"],
+      },
+      direction: {
+        type: "string",
+        description:
+          "Direction shortcut. Combine with `amount` for N half-viewports.",
+        oneOf: ["up", "down", "left", "right"],
+      },
+      amount: {
+        type: "number",
+        description: "Half-viewports per direction step. Default 1.",
+      },
+      name: {
+        type: "string",
+        description: "Scroll a scanned element into view by name.",
+      },
+    },
+    examples: [
+      'await page.scroll({ direction: "down" })',
+      "await page.scroll({ dy: 500 })",
+      'await page.scroll({ to: "bottom" })',
+      'await page.scroll("loginButton")',
+    ],
+  },
+  wait: {
+    description: "Sleep for `ms` milliseconds. Pass a number or { ms }.",
+    inputs: {
+      ms: {
+        type: "number",
+        description: "Milliseconds to wait. Default 1000.",
+      },
+    },
+    examples: ["await page.wait(2000)"],
+  },
+  waitFor: {
+    description:
+      "Block until a condition is met or `timeoutMs` elapses. Pass exactly one positive condition.",
+    inputs: {
+      name: {
+        type: "string",
+        description: "Wait for an element by scanned name.",
+      },
+      text: {
+        type: "string",
+        description: "Wait for any element whose text matches.",
+      },
+      urlMatches: {
+        type: "string",
+        description: "RegExp source against location.href.",
+      },
+      titleMatches: {
+        type: "string",
+        description: "RegExp source against document.title.",
+      },
+      urlChanges: {
+        type: "boolean",
+        description: "Wait until the URL is different from the baseline.",
+      },
+      from: {
+        type: "string",
+        description: "Optional baseline URL for urlChanges (default: current).",
+      },
+      selector: {
+        type: "string",
+        description: "Wait until a CSS selector matches at least one node.",
+      },
+      stable: {
+        type: "object",
+        description: "{ forMs, minCount? } catalog-stability check.",
+      },
+      timeoutMs: { type: "number", description: "Default 15000." },
+      intervalMs: { type: "number", description: "Poll period. Default 250." },
+    },
+    examples: [
+      'await page.waitFor({ name: "loginButton" })',
+      "await page.waitFor({ stable: { forMs: 1500 } })",
+      'await page.waitFor({ urlMatches: "/results" })',
+    ],
+  },
+  list: {
+    description:
+      "Return every named element on the current page as a string array. Combine with find/describe to inspect specific ones.",
+    examples: ["const names = await page.list()"],
+  },
+  collections: {
+    description:
+      "Summary of repeated-row collections the scanner detected. Returns { name: { rows, totalItems } }.",
+    examples: ["const cols = await page.collections()"],
+  },
+  scan: {
+    description:
+      "Force a scan of the page after navigation or dynamic DOM changes. Most navigating verbs scan automatically.",
+    examples: ["await page.scan()"],
+  },
+  rescan: {
+    description:
+      "Force a rescan of the page after a manual DOM mutation. Alias for scan(). Most navigating verbs scan automatically.",
+    examples: ["await page.rescan()"],
+  },
+  find: {
+    description:
+      "Substring/text search across element names and text. Returns up to 10 [{ name, kind, text }].",
+    inputs: {
+      query: {
+        type: "string",
+        required: true,
+        description: "Substring to search for (case-insensitive).",
+      },
+    },
+    examples: ['const hits = await page.find("login")'],
+  },
+  describe: {
+    description:
+      "Get the ElementInfo for a named element. Throws if the name is unknown.",
+    inputs: {
+      name: {
+        type: "string",
+        required: true,
+        description: "Element name from page.list() or page.find().",
+      },
+    },
+    examples: ['const el = await page.describe("loginButton")'],
+  },
+};
+
+/**
+ * `page.tabs.<verb>` — multi-tab management. Mirrors the dispatch
+ * path in browser.ts (_dispatchTabs).
+ */
+export const TABS_VERB_SPECS: Record<string, VerbSpec> = {
+  list: {
+    description:
+      "Return [{ id, url, title, active }] for every open tab on this browser.",
+    examples: ["const tabs = await page.tabs.list()"],
+  },
+  active: {
+    description: "Return the active tab's targetId.",
+    examples: ["const id = await page.tabs.active()"],
+  },
+  open: {
+    description:
+      "Open a new tab. Becomes the active tab. Returns the new targetId.",
+    inputs: {
+      url: { type: "string", description: "Initial URL. Default about:blank." },
+      waitUntil: {
+        type: "string",
+        oneOf: ["domcontentloaded", "load", "networkidle0", "networkidle2"],
+      },
+    },
+    examples: ['await page.tabs.open("https://example.com")'],
+  },
+  switch: {
+    description:
+      "Make the given tab active. Subsequent page.* calls route to it.",
+    inputs: {
+      id: {
+        type: "string",
+        required: true,
+        description: "targetId from tabs.list().",
+      },
+    },
+    examples: ["await page.tabs.switch(id)"],
+  },
+  close: {
+    description:
+      "Close a tab. If id is omitted, closes the active tab. Returns { closed, active }.",
+    inputs: {
+      id: {
+        type: "string",
+        description: "targetId. Default: active tab.",
+      },
+    },
+    examples: ["await page.tabs.close()", "await page.tabs.close(id)"],
+  },
+};

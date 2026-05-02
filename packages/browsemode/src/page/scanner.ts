@@ -8,8 +8,6 @@
 // Walks same-origin iframes recursively; cross-origin iframes are handled
 // by the Frame layer (separate CDP session per OOPIF).
 
-import type { ScanResult } from "../types.js";
-
 /**
  * JS payload that runs inside a page session via Runtime.evaluate. Returns
  * a ScanResult whose elements carry per-frame selectors. Each invocation
@@ -57,12 +55,29 @@ export const SCAN_SCRIPT = String.raw`
     if (el.hasAttribute('inert')) return false;
     if (el.closest('[hidden],[aria-hidden="true"],[inert]')) return false;
     try {
-      const cs = getComputedStyle(el);
-      if (cs) {
-        if (cs.display === 'none') return false;
-        if (cs.visibility === 'hidden' || cs.visibility === 'collapse') return false;
-        if (parseFloat(cs.opacity) === 0) return false;
+      let cur = el;
+      while (cur && cur.nodeType === 1) {
+        const cs = getComputedStyle(cur);
+        if (cs) {
+          if (cs.display === 'none') return false;
+          if (cs.visibility === 'hidden' || cs.visibility === 'collapse') return false;
+          if (parseFloat(cs.opacity) === 0) return false;
+          if (cur === el && cs.pointerEvents === 'none') return false;
+        }
+        cur = cur.parentElement || cur.getRootNode?.().host || null;
       }
+      const rects = el.getClientRects ? Array.from(el.getClientRects()) : [];
+      if (rects.length > 0 && !rects.some((r) => r.width > 0 && r.height > 0)) return false;
+      // 1x1 "accessible carousel" sentinels and tracking anchors are focusable
+      // but not useful action targets for an agent. Keep small real icon buttons
+      // (16x16 etc.), drop only effectively pixel-sized boxes.
+      if (rects.length > 0 && !rects.some((r) => r.width * r.height > 4)) return false;
+      // Keep below-the-fold elements (agents can scroll to them), but drop
+      // horizontally offscreen drawers/carousel items and anything above the
+      // document viewport. They are not actionable until a trigger opens or
+      // scrolls them and otherwise pollute the catalog with duplicate controls.
+      const vw = window.innerWidth || document.documentElement.clientWidth || 0;
+      if (rects.length > 0 && !rects.some((r) => r.right > 0 && r.left < vw && r.bottom > 0)) return false;
     } catch (_e) { /* obscura: no layout, accept */ }
     return true;
   };
@@ -183,21 +198,42 @@ export const SCAN_SCRIPT = String.raw`
   const cleanCamel = (s, maxLen) => camelFit(tokenize(s), maxLen);
 
   const nameFor = (el, kind) => {
-    // Direct, intentional sources first — use as-is, no token cleaning.
-    const direct = [
+    // Prefer human-facing labels/text over implementation attrs. Sites often
+    // stamp generic data-testids like "internal-link" on every article card;
+    // using those first produces useless names like internalLink37 even when
+    // the visible headline is the real semantic label. For text controls,
+    // labels and stable names/ids usually beat generic placeholders.
+    const fallback = visibleText(el);
+    const labelTextForName = (() => {
+      const out = [];
+      try {
+        if (el.labels) for (const l of el.labels) out.push(visibleText(l));
+      } catch (_e) {}
+      const id = el.getAttribute('id') || '';
+      if (id) {
+        try {
+          const root = el.getRootNode?.() || document;
+          const l = root.querySelector?.('label[for="' + id.replace(/"/g, '\\"') + '"]');
+          if (l) out.push(visibleText(l));
+        } catch (_e) {}
+      }
+      return [...new Set(out.map((s) => s.replace(/\s+/g, ' ').trim()).filter(Boolean))].join(' ');
+    })();
+    const human = [
       el.getAttribute('aria-label'),
-      el.getAttribute('data-testid'),
-      el.getAttribute('name'),
-      el.id,
+      kind === 'text' || kind === 'textarea' || kind === 'select' ? labelTextForName : '',
       el.getAttribute('placeholder'),
       el.getAttribute('title'),
       el.getAttribute('alt'),
     ].filter(Boolean);
-
-    // Fallback to visible text (aria-hidden stripped, deduped).
-    // We pass raw text — cleanCamel will tokenize/stopword-strip itself.
-    const fallback = visibleText(el);
-    const candidates = direct.length ? direct : (fallback ? [fallback] : []);
+    const impl = [
+      el.getAttribute('name'),
+      el.id,
+      el.getAttribute('data-testid'),
+    ].filter(Boolean);
+    const candidates = (kind === 'link' || kind === 'button' || kind === 'generic') && fallback
+      ? [...human, fallback, ...impl]
+      : [...human, ...impl, ...(fallback ? [fallback] : [])];
 
     const suffix = kind === 'button' ? 'Button'
                  : kind === 'link' ? 'Link'
@@ -230,15 +266,45 @@ export const SCAN_SCRIPT = String.raw`
   const elementByNode = new Map();
   let nextElIdx = 0;
 
+  const collectOpenRoots = (root) => {
+    const roots = [root];
+    const all = root.querySelectorAll ? Array.from(root.querySelectorAll('*')) : [];
+    for (const el of all) {
+      if (el.shadowRoot) roots.push(...collectOpenRoots(el.shadowRoot));
+    }
+    return roots;
+  };
+
+  const querySelectorDeepExpr = (selectorRoot, id) => '(() => {' +
+    'const find = (root) => {' +
+      'const hit = root.querySelector && root.querySelector(\'[data-browsemode="' + id + '"]\');' +
+      'if (hit) return hit;' +
+      'const all = root.querySelectorAll ? Array.from(root.querySelectorAll(\'*\')) : [];' +
+      'for (const el of all) {' +
+        'if (el.shadowRoot) {' +
+          'const found = find(el.shadowRoot);' +
+          'if (found) return found;' +
+        '}' +
+      '}' +
+      'return null;' +
+    '};' +
+    'return find(' + selectorRoot + ');' +
+  '})()';
+
   // Walk a document, returning the doc-local interactables list.
   // selectorRoot is the JS expression that resolves to the document we're
   // scanning (e.g. 'document' for top, or
   // 'document.querySelectorAll("iframe")[2].contentDocument' for nested).
+  // Open shadow roots are pierced recursively; closed shadow roots are not
+  // observable from page JS and require lower-level CDP DOM traversal.
   function scanDoc(rootDoc, selectorRoot) {
-    rootDoc.querySelectorAll('[data-browsemode]').forEach((el) => {
-      el.removeAttribute('data-browsemode');
-    });
-    const docAll = Array.from(rootDoc.querySelectorAll(SELECTOR));
+    const roots = collectOpenRoots(rootDoc);
+    for (const root of roots) {
+      root.querySelectorAll?.('[data-browsemode]').forEach((el) => {
+        el.removeAttribute('data-browsemode');
+      });
+    }
+    const docAll = roots.flatMap((root) => Array.from(root.querySelectorAll?.(SELECTOR) || []));
     const docVisible = docAll.filter(isInteractable);
     const docFiltered = docVisible.filter((el) => {
       if (el.tagName === 'FORM') return true;
@@ -246,6 +312,50 @@ export const SCAN_SCRIPT = String.raw`
       if (CONTAINER_ROLES.has(role)) return true;
       return !docVisible.some((other) => other !== el && el.contains(other));
     });
+
+    const attr = (node, name) => ((node && node.getAttribute && node.getAttribute(name)) || '').replace(/\s+/g, ' ').trim();
+    const labelsFor = (node) => {
+      const out = [];
+      try {
+        if (node.labels) for (const l of node.labels) out.push(visibleText(l));
+      } catch (_e) {}
+      const id = attr(node, 'id');
+      if (id) {
+        try {
+          const l = rootDoc.querySelector('label[for="' + id.replace(/"/g, '\\"') + '"]');
+          if (l) out.push(visibleText(l));
+        } catch (_e) {}
+      }
+      return out.join(' ').replace(/\s+/g, ' ').trim();
+    };
+    const signalsFor = (node) => {
+      const form = node.closest && node.closest('form');
+      let rectSignal = '';
+      try {
+        const r = node.getBoundingClientRect?.();
+        if (r) rectSignal = [Math.round(r.x), Math.round(r.y), Math.round(r.width), Math.round(r.height)].join(',');
+      } catch (_e) {}
+      const signals = {
+        tag: node.tagName.toLowerCase(),
+        rect: rectSignal,
+        type: attr(node, 'type'),
+        role: attr(node, 'role'),
+        nameAttr: attr(node, 'name'),
+        idAttr: attr(node, 'id'),
+        placeholder: attr(node, 'placeholder'),
+        ariaLabel: attr(node, 'aria-label'),
+        titleAttr: attr(node, 'title'),
+        autocomplete: attr(node, 'autocomplete'),
+        labelText: labelsFor(node),
+        formAction: form ? attr(form, 'action') : '',
+        formMethod: form ? (attr(form, 'method') || 'get') : '',
+        formRole: form ? attr(form, 'role') : '',
+        formAriaLabel: form ? attr(form, 'aria-label') : '',
+        formText: form ? visibleText(form).replace(/\s+/g, ' ').trim().slice(0, 240) : '',
+      };
+      for (const k of Object.keys(signals)) if (!signals[k]) delete signals[k];
+      return signals;
+    };
 
     docFiltered.forEach((el) => {
       const kind = kindOf(el);
@@ -259,8 +369,9 @@ export const SCAN_SCRIPT = String.raw`
         name,
         kind,
         text: ((el.textContent || el.value || el.getAttribute('placeholder') || '') + '').replace(/\s+/g, ' ').trim().slice(0, 120),
+        signals: signalsFor(el),
         verbs: verbsFor(kind),
-        selector: selectorRoot + '.querySelector(\'[data-browsemode="' + id + '"]\')',
+        selector: querySelectorDeepExpr(selectorRoot, id),
       };
       result.push(entry);
       elementByNode.set(el, entry);

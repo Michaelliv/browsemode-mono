@@ -116,7 +116,7 @@ export class CDP {
     }
     set.add(handler);
     return () => {
-      set!.delete(handler);
+      set.delete(handler);
     };
   }
 

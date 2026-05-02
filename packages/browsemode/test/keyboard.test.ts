@@ -1,4 +1,4 @@
-import { describe, expect, it, mock } from "bun:test";
+import { describe, expect, it } from "bun:test";
 import { KEY_MAP, sendKey, typeText } from "../src/page/verbs/keyboard.js";
 
 function fakeSession() {

@@ -19,14 +19,14 @@ script: |
   // SPAs that mount after load: settle, then rescan for fresh handles.
   await page.waitFor({ stable: { forMs: 1000 } });
   await page.scan();
+  const input = (await page.list()).find((n) => n === "newTodoInput" || n === "newTodo" || n === "textInput" || /todo.*input|textInput|whatNeeds/i.test(n));
+  if (!input) throw new Error("Todo input not found");
   for (const text of ["write evals", "ship browsemode", "celebrate"]) {
-    await page.newTodo.fill(text);
-    await page.newTodo.press("Enter");
+    await page[input].fill(text);
+    await page[input].press("Enter");
   }
   await page.waitFor({ stable: { forMs: 500 } });
-  // Read the page text — TodoMVC shows "3 items left"
-  const md = await page.markdown();
-  return md;
+  return await page.html();
 
 judge:
   must:

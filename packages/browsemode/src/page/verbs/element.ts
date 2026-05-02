@@ -9,6 +9,7 @@
 
 import type { Session } from "../../cdp/session.js";
 import type { ElementInfo } from "../../types.js";
+import type { VerbSpec } from "./help.js";
 import { sendKey, typeText } from "./keyboard.js";
 
 export type ElementVerbHandler = (
@@ -34,7 +35,6 @@ export const UNIVERSAL_ELEMENT_VERBS: ReadonlySet<string> = new Set([
  */
 export const NAVIGATING_ELEMENT_VERBS: ReadonlySet<string> = new Set([
   "click",
-  "submit",
   "choose",
   "press",
 ]);
@@ -143,6 +143,17 @@ async function clickPipeline(
       }
     }
 
+    const isVisible = (node) => {
+      if (!node || node.hidden || node.closest?.('[hidden],[aria-hidden="true"],[inert]')) return false;
+      try {
+        const cs = getComputedStyle(node);
+        if (cs.display === 'none' || cs.visibility === 'hidden' || cs.visibility === 'collapse' || parseFloat(cs.opacity) === 0) return false;
+      } catch {}
+      return true;
+    };
+    const visiblePopupCount = Array.from(document.querySelectorAll('dialog,[role="dialog"],[aria-modal="true"]')).filter(isVisible).length;
+    const hasPopup = !!(el.getAttribute('aria-haspopup') || el.closest?.('[aria-haspopup]'));
+
     return {
       x: cx,
       y: cy,
@@ -150,6 +161,8 @@ async function clickPipeline(
       preClickChecked,
       occluded,
       hasElementFromPoint: typeof document.elementFromPoint === 'function',
+      hasPopup,
+      visiblePopupCount,
     };
   })()`)) as any;
 
@@ -218,6 +231,11 @@ async function clickPipeline(
     { timeoutMs: 1000 },
   );
   await move;
+  // Browser-use leaves small gaps between move/down/up. Some modern
+  // component systems attach hover/focus/pointer state across the event
+  // sequence; dispatching all three CDP events back-to-back can be too
+  // fast for those listeners to settle.
+  await new Promise((r) => setTimeout(r, 50));
   await s.cdp.send(
     "Input.dispatchMouseEvent",
     {
@@ -230,6 +248,7 @@ async function clickPipeline(
     s.id,
     { timeoutMs: 3000 },
   );
+  await new Promise((r) => setTimeout(r, 80));
   await s.cdp.send(
     "Input.dispatchMouseEvent",
     {
@@ -249,6 +268,39 @@ async function clickPipeline(
     x: plan.x,
     y: plan.y,
   };
+
+  // Some JS component libraries attach popup expansion to synthetic click
+  // handlers but miss a pure CDP mouse sequence in edge cases. Browser-use's
+  // final fallback is a DOM `.click()`; apply the same idea narrowly for
+  // popup triggers, and only when the CDP click did not surface a new visible
+  // dialog/popup. This avoids double-toggling menus that already opened.
+  if (plan.hasPopup) {
+    const popupOpened = await s.evalJSON(`(() => {
+      const isVisible = (node) => {
+        if (!node || node.hidden || node.closest?.('[hidden],[aria-hidden="true"],[inert]')) return false;
+        try {
+          const cs = getComputedStyle(node);
+          if (cs.display === 'none' || cs.visibility === 'hidden' || cs.visibility === 'collapse' || parseFloat(cs.opacity) === 0) return false;
+        } catch {}
+        return true;
+      };
+      const count = Array.from(document.querySelectorAll('dialog,[role="dialog"],[aria-modal="true"]')).filter(isVisible).length;
+      return count > ${Number(plan.visiblePopupCount || 0)};
+    })()`);
+    if (!popupOpened) {
+      await s.evalJSON(`(() => {
+        const el = (${find(el)});
+        if (!el) return;
+        const opts = { bubbles: true, cancelable: true, composed: true, view: window };
+        for (const t of ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click']) {
+          const Ctor = t.startsWith('pointer') && typeof PointerEvent !== 'undefined' ? PointerEvent : MouseEvent;
+          el.dispatchEvent(new Ctor(t, opts));
+        }
+        el.click?.();
+      })()`);
+      result.via = "cdp-mouse+js-event-popup-fallback";
+    }
+  }
   if (plan.isToggle) {
     const post = await s.evalJSON(`(() => {
       const el = (${find(el)});
@@ -298,6 +350,17 @@ export const ELEMENT_VERBS: Record<string, ElementVerbHandler> = {
       return { ok: true };
     })()`);
     if (text.length > 0) await typeText(s, text);
+    // React/Vue/Svelte controlled inputs can miss the final value when a
+    // programmatic clear is followed by CDP Input.insertText. Dispatch a
+    // final input/change from the element so frameworks reconcile their
+    // state with the DOM value before the next keypress/submit.
+    await s.evalJSON(`(() => {
+      const el = (${find(el)});
+      if (!el) throw new Error('Element gone: ${el.name}');
+      el.dispatchEvent(new Event('input', { bubbles: true }));
+      el.dispatchEvent(new Event('change', { bubbles: true }));
+      return { ok: true };
+    })()`);
     return { ok: true };
   },
 
@@ -423,19 +486,51 @@ export const ELEMENT_VERBS: Record<string, ElementVerbHandler> = {
       return Array.from(el.options || []).map(o => ({ value: o.value, label: o.textContent.trim() }));
     })()`),
 
-  submit: async (s, el) =>
-    s.evalJSON(`(() => {
-      const el = (${find(el)});
-      if (!el) throw new Error('Form gone');
-      el.submit?.() ?? el.requestSubmit?.();
-      return { ok: true };
-    })()`),
+  submit: async (s, el) => {
+    const plan = (await s.evalJSON(`(() => {
+      const form = (${find(el)});
+      if (!form) throw new Error('Form gone');
+      const method = (form.getAttribute('method') || 'get').toLowerCase();
+      if (method === 'get') {
+        const pairs = [];
+        const fields = form.querySelectorAll?.('input, select, textarea, button') || [];
+        for (const f of fields) {
+          const name = f.name || f.getAttribute?.('name') || '';
+          if (!name || f.disabled) continue;
+          const tag = (f.tagName || '').toLowerCase();
+          const type = (f.type || f.getAttribute?.('type') || '').toLowerCase();
+          if (tag === 'button' || type === 'submit' || type === 'button' || type === 'reset' || type === 'image') continue;
+          if ((type === 'checkbox' || type === 'radio') && !f.checked) continue;
+          if (tag === 'select' && f.multiple) {
+            for (const o of f.selectedOptions || []) pairs.push([name, o.value || '']);
+          } else {
+            pairs.push([name, f.value || '']);
+          }
+        }
+        const action = form.getAttribute('action') || location.href;
+        const url = new URL(action, location.href);
+        const query = pairs.map(([k, v]) => encodeURIComponent(k).replace(/%20/g, '+') + '=' + encodeURIComponent(v).replace(/%20/g, '+')).join('&');
+        return { kind: 'get', url: url.origin + url.pathname + (query ? '?' + query : '') + (url.hash || '') };
+      }
+      if (typeof form.submit === 'function') form.submit();
+      else if (typeof form.requestSubmit === 'function') form.requestSubmit();
+      else throw new Error('Element is not submittable');
+      return { kind: 'native' };
+    })()`)) as any;
+    if (plan?.kind === "get" && typeof plan.url === "string") {
+      await s.cdp
+        .send("Page.navigate", { url: plan.url }, s.id, { timeoutMs: 5000 })
+        .catch(() => undefined);
+      return { ok: true, via: "manual-get", url: plan.url };
+    }
+    return { ok: true, via: "native-submit" };
+  },
 
   fields: async (s, el) =>
     s.evalJSON(`(() => {
       const el = (${find(el)});
       if (!el) return [];
-      return Array.from(el.elements || []).map(f => ({
+      return Array.from(el.querySelectorAll?.('input, textarea, select, button') || el.elements || []).map(f => ({
         name: f.name || f.id || '',
         type: f.type || f.tagName.toLowerCase(),
         value: f.value || '',
@@ -451,3 +546,157 @@ export function assertElementVerb(el: ElementInfo, verb: string): void {
       `${[...UNIVERSAL_ELEMENT_VERBS].join(", ")}`,
   );
 }
+
+/**
+ * Per-verb metadata used to build the in-sandbox `api.*` discovery
+ * helpers. `appliesTo` lists which scanner-detected element kinds
+ * the verb is valid for; UNIVERSAL_ELEMENT_VERBS apply to every
+ * kind (look for appliesTo: ['*']).
+ *
+ * The dispatch path doesn't read this; ELEMENT_VERBS owns that.
+ * Specs are decorative metadata for discovery only.
+ */
+export const ELEMENT_VERB_SPECS: Record<string, VerbSpec> = {
+  click: {
+    description:
+      "Click the element using browsemode's six-step pipeline (scroll-into-view, viewport-clamp, occlusion check, CDP mouse dispatch with JS-click fallback). Refuses <select> (use choose) and <input type=file> (use upload).",
+    appliesTo: ["button", "link"],
+    examples: ["await page.signInButton.click()"],
+  },
+  text: {
+    description: "Read the element's textContent (trimmed).",
+    appliesTo: ["button", "link"],
+    examples: ["const t = await page.headingLink.text()"],
+  },
+  href: {
+    description:
+      "Resolve the link's href to an absolute URL against the current location. Returns a string.",
+    appliesTo: ["link"],
+    examples: ["const url = await page.firstStoryLink.href()"],
+  },
+  value: {
+    description: "Read the input/textarea's current value.",
+    appliesTo: ["text", "textarea", "select"],
+    examples: ["const v = await page.searchInput.value()"],
+  },
+  fill: {
+    description:
+      "Clear an input/textarea and type the supplied value. Uses the native value setter so React's value tracker picks up the change.",
+    appliesTo: ["text", "textarea", "form"],
+    inputs: {
+      value: {
+        type: "string",
+        required: true,
+        description: "Text to type after clearing.",
+      },
+    },
+    examples: ['await page.emailInput.fill("user@example.com")'],
+  },
+  clear: {
+    description:
+      "Empty the input/textarea value and fire input + change events.",
+    appliesTo: ["text", "textarea"],
+    examples: ["await page.searchInput.clear()"],
+  },
+  focus: {
+    description: "Focus the input/textarea without typing anything.",
+    appliesTo: ["text", "textarea"],
+    examples: ["await page.searchInput.focus()"],
+  },
+  hover: {
+    description:
+      "Dispatch synthetic mouseover/mouseenter/pointerover events. Useful for hover-triggered menus.",
+    appliesTo: ["*"],
+    examples: ["await page.menuTrigger.hover()"],
+  },
+  scrollIntoView: {
+    description: "Scroll the element to the center of the viewport.",
+    appliesTo: ["*"],
+    examples: ["await page.someTarget.scrollIntoView()"],
+  },
+  press: {
+    description:
+      "Focus the element, then dispatch a keyboard key. Useful for submitting an input via Enter without locating a form.",
+    appliesTo: ["*"],
+    inputs: {
+      key: {
+        type: "string",
+        required: true,
+        description: "'Enter', 'Escape', 'ArrowDown', 'a', 'Control+a', etc.",
+      },
+    },
+    examples: ['await page.searchInput.press("Enter")'],
+  },
+  type: {
+    description:
+      "Like fill but does NOT clear first. Appends to whatever is already in the field.",
+    appliesTo: ["*"],
+    inputs: {
+      text: {
+        type: "string",
+        required: true,
+        description: "Text to append.",
+      },
+    },
+    examples: ['await page.commentBox.type(" thanks!")'],
+  },
+  check: {
+    description: "Set checked = true on a checkbox and fire change.",
+    appliesTo: ["checkbox"],
+    examples: ["await page.acceptTosCheckbox.check()"],
+  },
+  uncheck: {
+    description: "Set checked = false on a checkbox and fire change.",
+    appliesTo: ["checkbox"],
+    examples: ["await page.subscribeCheckbox.uncheck()"],
+  },
+  toggle: {
+    description: "Flip checked on a checkbox and fire change.",
+    appliesTo: ["checkbox"],
+    examples: ["await page.darkModeCheckbox.toggle()"],
+  },
+  isChecked: {
+    description: "Return whether a checkbox is currently checked.",
+    appliesTo: ["checkbox"],
+    examples: ["const on = await page.darkModeCheckbox.isChecked()"],
+  },
+  select: {
+    description: "Select a radio option (sets checked = true).",
+    appliesTo: ["radio"],
+    examples: ["await page.weeklyPlanRadio.select()"],
+  },
+  isSelected: {
+    description: "Return whether a radio is currently selected.",
+    appliesTo: ["radio"],
+    examples: ["const sel = await page.monthlyPlanRadio.isSelected()"],
+  },
+  choose: {
+    description: "Set the value on a <select> and fire change.",
+    appliesTo: ["select"],
+    inputs: {
+      value: {
+        type: "string",
+        required: true,
+        description: "Option value to choose.",
+      },
+    },
+    examples: ['await page.countrySelect.choose("US")'],
+  },
+  options: {
+    description: "List the <select>'s options. Returns [{ value, label }].",
+    appliesTo: ["select"],
+    examples: ["const opts = await page.countrySelect.options()"],
+  },
+  submit: {
+    description:
+      "Submit a form. Use this on the FORM, not the submit button \u2014 clicking the button does not always navigate; submitting the form does.",
+    appliesTo: ["form"],
+    examples: ["await page.searchForm.submit()"],
+  },
+  fields: {
+    description:
+      "List the form's named inputs. Returns [{ name, type, value }].",
+    appliesTo: ["form"],
+    examples: ["const fs = await page.checkoutForm.fields()"],
+  },
+};

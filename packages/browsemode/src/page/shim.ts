@@ -245,7 +245,63 @@ export const SHIM_SCRIPT = String.raw`
     }
   } catch (_e) {}
 
-  // 8. getBoundingClientRect — if missing entirely, return a stub rect.
+  // 8. Obscura's Element.prototype.querySelector/querySelectorAll are
+  // currently document-scoped, not element-scoped. That breaks native
+  // form.submit(), because Obscura's own submit implementation calls
+  // this.querySelectorAll('input, select, textarea'). Patch the
+  // element-scoped methods by filtering document-level results through
+  // contains(). This is intentionally always-on for obscura: the native
+  // functions exist, but have the wrong semantics.
+  try {
+    if (typeof Element !== 'undefined' && Element.prototype &&
+        typeof document !== 'undefined' && document.querySelectorAll) {
+      var nativeElementQsa = Element.prototype.querySelectorAll;
+      var nativeElementQs = Element.prototype.querySelector;
+      var needsScopedSelectorPatch = false;
+      try {
+        if (typeof nativeElementQsa !== 'function') {
+          needsScopedSelectorPatch = true;
+        } else {
+          var probeOuter = document.createElement('div');
+          var probeInner = document.createElement('div');
+          var probeInside = document.createElement('span');
+          var probeOutside = document.createElement('span');
+          probeInside.setAttribute('data-browsemode-scope-probe', 'x');
+          probeOutside.setAttribute('data-browsemode-scope-probe', 'x');
+          probeInner.appendChild(probeInside);
+          probeOuter.appendChild(probeInner);
+          probeOuter.appendChild(probeOutside);
+          document.documentElement.appendChild(probeOuter);
+          needsScopedSelectorPatch = nativeElementQsa.call(probeInner, '[data-browsemode-scope-probe]').length !== 1;
+          probeOuter.remove();
+        }
+      } catch (_probeError) {
+        needsScopedSelectorPatch = true;
+      }
+      if (needsScopedSelectorPatch) {
+        Element.prototype.querySelectorAll = function (sel) {
+          var all = Array.prototype.slice.call(document.querySelectorAll(sel) || []);
+          var scoped = [];
+          for (var i = 0; i < all.length; i++) {
+            var node = all[i];
+            if (node && node !== this && this.contains && this.contains(node)) scoped.push(node);
+          }
+          scoped.item = function (i) { return scoped[i] || null; };
+          scoped.forEach = Array.prototype.forEach.bind(scoped);
+          return scoped;
+        };
+        Element.prototype.querySelector = function (sel) {
+          var all = this.querySelectorAll(sel);
+          return all[0] || null;
+        };
+      } else {
+        Element.prototype.querySelectorAll = nativeElementQsa;
+        Element.prototype.querySelector = nativeElementQs;
+      }
+    }
+  } catch (_e) {}
+
+  // 9. getBoundingClientRect — if missing entirely, return a stub rect.
   // (We don't override an existing impl even if it returns zeros; the
   // shim is for missing APIs, not for fudging layout numbers.)
   try {

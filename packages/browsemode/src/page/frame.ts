@@ -36,15 +36,31 @@ export async function refreshFrames(
 ): Promise<void> {
   // Walk Target.getTargets browser-wide. The browser session sees every
   // target; per-tab sessions can't enumerate iframes that haven't been
-  // attached to them yet. Cross-tab leakage is bounded because each tab
-  // runs its own attach pool and only routes verbs through its own
-  // sessions.
+  // attached to them yet. Chrome returns OOPIF targets for every tab, so
+  // filter by this page's frame tree before attaching; otherwise a scan of
+  // github.com can inherit BBC/Google/ads iframes from other open tabs.
+  const frameTree = await page.mainFrame.session
+    .send<{ frameTree?: any }>("Page.getFrameTree", {})
+    .catch(() => ({ frameTree: null }));
+  const allowedFrameIds = new Set<string>();
+  const visit = (node: any) => {
+    const id = node?.frame?.id;
+    if (id) allowedFrameIds.add(id);
+    for (const child of node?.childFrames ?? []) visit(child);
+  };
+  visit(frameTree.frameTree);
+
   const r = await browser.cdp
     .send<{ targetInfos?: any[] }>("Target.getTargets", {})
     .catch(() => ({ targetInfos: [] as any[] }));
   // Defensive: fakes / older CDP servers may resolve without `targetInfos`.
   const targetInfos: any[] = r?.targetInfos ?? [];
-  const liveIframes = targetInfos.filter((t: any) => t.type === "iframe");
+  const liveIframes = targetInfos.filter(
+    (t: any) =>
+      t.type === "iframe" &&
+      (!t.parentFrameId || allowedFrameIds.has(t.parentFrameId)),
+  );
+  for (const t of liveIframes) allowedFrameIds.add(t.targetId);
   const liveIds = new Set(liveIframes.map((t: any) => t.targetId));
 
   // Drop stale frames first.

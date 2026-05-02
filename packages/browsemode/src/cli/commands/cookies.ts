@@ -1,12 +1,7 @@
 // `browsemode cookies dump` — read Chrome's SQLite cookie store + decrypt.
 // `browsemode cookies inject` — push cookies into a browsemode browser.
 
-import {
-  type ChromeCookie,
-  readChromeCookies,
-  toCdpCookies,
-} from "../../browser/cookies.js";
-import { Browsemode } from "../../index.js";
+import { type ChromeCookie, readChromeCookies } from "../../browser/cookies.js";
 import { ensureBrowser } from "../browser-handle.js";
 import type { GlobalFlags } from "../flags.js";
 import { applyGlobalFlags, outputOpts, resolveBrowserId } from "../flags.js";

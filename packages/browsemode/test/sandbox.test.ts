@@ -5,7 +5,13 @@ import { Sandbox } from "../src/sandbox/sandbox.js";
 function fakePage(
   handler: (path: string, args: unknown) => Promise<unknown>,
 ): Page {
-  return { dispatch: handler } as unknown as Page;
+  // The sandbox snapshots `page.elements` at exec start to build
+  // the api.* catalog. The handler tests don't care about that
+  // surface; an empty map is fine.
+  return {
+    dispatch: handler,
+    elements: new Map(),
+  } as unknown as Page;
 }
 
 describe("Sandbox", () => {

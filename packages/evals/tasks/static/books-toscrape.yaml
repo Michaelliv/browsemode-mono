@@ -8,6 +8,12 @@ budget:
   maxSteps: 4
   timeoutSec: 90
 
+script: |
+  await page.scan();
+  const md = await page.markdown();
+  const match = md.match(/A Light in the Attic/i);
+  return match ? match[0] : md.slice(0, 2000);
+
 judge:
   must:
     # Books to Scrape's first book is consistently "A Light in the Attic"

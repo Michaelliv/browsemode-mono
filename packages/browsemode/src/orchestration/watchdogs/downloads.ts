@@ -120,7 +120,6 @@ export class DownloadsWatchdog implements Watchdog {
       const received = Number(params?.receivedBytes ?? 0);
       const total = Number(params?.totalBytes ?? 0);
       if (params?.state === "completed") {
-        const filename = guidToFilename.get(guid) ?? guid;
         guidToFilename.delete(guid);
         browser.bus.emit({
           kind: "download.completed",

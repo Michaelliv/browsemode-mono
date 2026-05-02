@@ -19,7 +19,16 @@ import {
   shouldInterruptAfterDeadline,
 } from "quickjs-emscripten";
 import type { Page } from "../page/page.js";
-import { pageVerbNames } from "../page/verbs/page.js";
+import {
+  ELEMENT_VERB_SPECS,
+  UNIVERSAL_ELEMENT_VERBS,
+} from "../page/verbs/element.js";
+import type { VerbCatalogEntry } from "../page/verbs/help.js";
+import {
+  PAGE_VERB_SPECS,
+  pageVerbNames,
+  TABS_VERB_SPECS,
+} from "../page/verbs/page.js";
 import type { ExecOpts, ExecuteResult } from "../types.js";
 import { buildSandboxSource } from "./proxy.js";
 
@@ -102,7 +111,13 @@ export class Sandbox {
         ctx.setProp(ctx.global, "__browsemode_invoke", invokeFn);
         invokeFn.dispose();
 
-        const source = buildSandboxSource(code, pageVerbNames());
+        // Build a fresh catalog snapshot for this exec call. Includes
+        // static page/tabs verbs from the spec tables PLUS one entry
+        // per (currentElement, supportedVerb) pair so the agent's
+        // `api.list()` shows things like 'searchInput.fill' and
+        // 'searchForm.submit' alongside 'page.goto'.
+        const catalog = buildLiveCatalog(this.getPage());
+        const source = buildSandboxSource(code, pageVerbNames(), catalog);
 
         const evaluated = ctx.evalCode(source, "browsemode-sandbox.js");
         if (evaluated.error) {
@@ -165,6 +180,54 @@ export class Sandbox {
       runtime.dispose();
     }
   }
+}
+
+/**
+ * Build a snapshot of every callable path the agent has at this
+ * moment: static page verbs, tab verbs, and one entry per
+ * (element name, supported verb) pair. The catalog freshens on
+ * every execute_browsemode call (a new Sandbox is constructed),
+ * so it always reflects the current page.elements map.
+ */
+function buildLiveCatalog(page: Page): VerbCatalogEntry[] {
+  const out: VerbCatalogEntry[] = [];
+  for (const [name, spec] of Object.entries(PAGE_VERB_SPECS)) {
+    out.push({
+      path: `page.${name}`,
+      name,
+      scope: "page",
+      description: spec.description,
+      inputs: spec.inputs ?? {},
+      examples: spec.examples ?? [],
+    });
+  }
+  for (const [name, spec] of Object.entries(TABS_VERB_SPECS)) {
+    out.push({
+      path: `tabs.${name}`,
+      name,
+      scope: "tabs",
+      description: spec.description,
+      inputs: spec.inputs ?? {},
+      examples: spec.examples ?? [],
+    });
+  }
+  for (const el of page.elements.values()) {
+    const verbSet = new Set<string>([...el.verbs, ...UNIVERSAL_ELEMENT_VERBS]);
+    for (const verb of verbSet) {
+      const spec = ELEMENT_VERB_SPECS[verb];
+      if (!spec) continue;
+      out.push({
+        path: `${el.name}.${verb}`,
+        name: verb,
+        scope: "element",
+        description: spec.description,
+        inputs: spec.inputs ?? {},
+        examples: spec.examples ?? [],
+        appliesTo: spec.appliesTo,
+      });
+    }
+  }
+  return out;
 }
 
 // ── helpers ────────────────────────────────────────────

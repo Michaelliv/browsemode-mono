@@ -20,7 +20,7 @@
 import { Bus } from "../bus.js";
 import { CDP } from "../cdp/client.js";
 import { Session } from "../cdp/session.js";
-import { getConfig, randomBrowserId } from "../config.js";
+import { getConfig } from "../config.js";
 import {
   clearBrowser,
   type PersistedBrowser,
@@ -190,7 +190,8 @@ export class Browser {
   /** Tear down every installed watchdog. Idempotent. */
   private detachWatchdogs(): void {
     while (this._watchdogDetachers.length) {
-      const fn = this._watchdogDetachers.pop()!;
+      const fn = this._watchdogDetachers.pop();
+      if (!fn) continue;
       try {
         fn();
       } catch {
@@ -488,6 +489,30 @@ export class Browser {
   async choose(name: string, value: string): Promise<unknown> {
     return this.activePage.choose(name, value);
   }
+
+  private async refreshTabsMetadata(): Promise<void> {
+    const targets = await this.cdp
+      .send<{
+        targetInfos: Array<{ targetId: string; url?: string; title?: string }>;
+      }>("Target.getTargets", {})
+      .catch(() => null);
+    if (!targets) return;
+    const live = new Set<string>();
+    for (const info of targets.targetInfos ?? []) {
+      const page = this._pages.get(info.targetId);
+      if (!page) continue;
+      live.add(info.targetId);
+      if (typeof info.url === "string") page.url = info.url;
+      if (typeof info.title === "string") page.title = info.title;
+    }
+    for (const id of [...this._pages.keys()]) {
+      if (!live.has(id)) this._pages.delete(id);
+    }
+    if (this._activeTargetId && !this._pages.has(this._activeTargetId)) {
+      this._activeTargetId = this._pages.keys().next().value ?? null;
+    }
+  }
+
   /** URL of the active page. Throws if no pages open. */
   get url(): string {
     return this.activePage.url;
@@ -501,13 +526,15 @@ export class Browser {
   async _dispatchTabs(verb: string, args: unknown): Promise<unknown> {
     const a = (args ?? {}) as any;
     switch (verb) {
-      case "list":
+      case "list": {
+        await this.refreshTabsMetadata();
         return [...this._pages.values()].map((p) => ({
           id: p.targetId,
           url: p.url,
           title: p.title,
           active: p.targetId === this._activeTargetId,
         }));
+      }
       case "active":
         return this._activeTargetId;
       case "open": {

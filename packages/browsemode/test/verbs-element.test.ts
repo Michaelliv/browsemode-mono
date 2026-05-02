@@ -1,10 +1,12 @@
 import { describe, expect, it } from "bun:test";
+import { Session } from "../src/cdp/session.js";
 import {
   assertElementVerb,
   ELEMENT_VERBS,
   NAVIGATING_ELEMENT_VERBS,
   UNIVERSAL_ELEMENT_VERBS,
 } from "../src/page/verbs/element.js";
+import { asCdp, FakeCDP } from "./fixtures/fake-cdp.js";
 
 const EL = (kind: string, verbs: string[] = []) =>
   ({ id: "x", name: "x", kind, text: "", verbs, selector: "" }) as any;
@@ -45,10 +47,37 @@ describe("element verb registry", () => {
     }
   });
 
-  it("NAVIGATING_ELEMENT_VERBS includes click, submit, choose, press", () => {
-    for (const v of ["click", "submit", "choose", "press"]) {
+  it("NAVIGATING_ELEMENT_VERBS includes click, choose, press", () => {
+    for (const v of ["click", "choose", "press"]) {
       expect(NAVIGATING_ELEMENT_VERBS.has(v)).toBe(true);
     }
+  });
+
+  it("fill dispatches final input/change after CDP text insertion", async () => {
+    const fake = new FakeCDP({
+      "Runtime.evaluate": () => ({ result: { value: { ok: true } } }),
+      "Input.insertText": () => ({}),
+    });
+    const session = new Session(asCdp(fake), "S1");
+
+    await ELEMENT_VERBS.fill(
+      session,
+      EL("text", ["fill", "clear", "value", "focus"]),
+      "hello",
+    );
+
+    const evals = fake.callsFor("Runtime.evaluate");
+    const insertText = fake.callsFor("Input.insertText");
+    expect(insertText).toHaveLength(1);
+    expect(insertText[0].params.text).toBe("hello");
+    expect(evals).toHaveLength(2);
+    expect(evals[0].params.expression).toContain("setter.call(el, '')");
+    expect(evals[1].params.expression).toContain(
+      "dispatchEvent(new Event('input'",
+    );
+    expect(evals[1].params.expression).toContain(
+      "dispatchEvent(new Event('change'",
+    );
   });
 });
 

@@ -2,7 +2,7 @@
 // open managed Chrome and try again. Tests use mocks to drive the
 // scenarios without real browsers.
 
-import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
+import { afterEach, describe, expect, it, mock } from "bun:test";
 import { Bus } from "../src/bus.js";
 import { openWithFallback } from "../src/orchestration/fallback.js";
 

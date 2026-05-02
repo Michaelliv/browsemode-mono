@@ -50,23 +50,31 @@ export async function attachBrowser(): Promise<Browser> {
  * wants once it has the handle.
  *
  * Backend selection via PI_BROWSE_BACKEND:
- *   - "obscura" (default): try obscura on PI_BROWSE_OBSCURA_PORT,
- *     fall back to managed Chrome if obscura isn't reachable.
- *   - "chrome": skip obscura entirely, spawn the managed Chrome.
+ *   - "chrome" (default): spawn the managed Chrome.
+ *   - "obscura": try obscura on PI_BROWSE_OBSCURA_PORT, fall back
+ *     to managed Chrome if obscura isn't reachable.
  *
  * The eval pi runner sets this from the orchestrator's --backend
- * flag so chrome-only tasks force the chrome path even when an
- * obscura process is running on :9333.
+ * flag so obscura evals still exercise obscura explicitly.
  */
 export async function ensureBrowser(): Promise<Browser> {
-  if (_browser) return _browser;
+  if (_browser) {
+    if (isExpectedBackend(_browser) && (await isUsable(_browser)))
+      return _browser;
+    await _browser.close().catch(() => undefined);
+    _browser = null;
+  }
   try {
-    _browser = await Browsemode.restore(_browserId);
-    return _browser;
+    const restored = await Browsemode.restore(_browserId);
+    if (isExpectedBackend(restored) && (await isUsable(restored))) {
+      _browser = restored;
+      return _browser;
+    }
+    await restored.close().catch(() => undefined);
   } catch {
     // No usable snapshot — open fresh.
   }
-  const backend = process.env.PI_BROWSE_BACKEND ?? "obscura";
+  const backend = process.env.PI_BROWSE_BACKEND ?? "chrome";
   if (backend === "obscura") {
     try {
       _browser = await Browsemode.connect({
@@ -115,4 +123,24 @@ export async function closeBrowser(): Promise<void> {
 
 export function currentBrowser(): Browser | null {
   return _browser;
+}
+
+function isExpectedBackend(browser: Browser): boolean {
+  const backend = process.env.PI_BROWSE_BACKEND ?? "chrome";
+  // Obscura mode intentionally falls back to Chrome when Obscura is
+  // unavailable; keep that fallback handle across calls instead of closing it
+  // and retrying Obscura forever.
+  if (backend === "obscura") return true;
+  return !/obscura/i.test(browser.product);
+}
+
+async function isUsable(browser: Browser): Promise<boolean> {
+  try {
+    const result = await browser.exec("return await page.title()", {
+      timeoutMs: 3000,
+    });
+    return !result.error;
+  } catch {
+    return false;
+  }
 }

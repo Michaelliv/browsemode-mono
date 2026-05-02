@@ -96,7 +96,7 @@ describe("Page.dispatch routing", () => {
   });
 
   it("auto-rescans after a navigating element verb", async () => {
-    const { browser, cdp } = makePage();
+    const { browser } = makePage();
     const page = await constructPage(browser);
     page.settleMs = 0;
     page.elements.set("submitButton", {

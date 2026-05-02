@@ -64,7 +64,7 @@ judge:
 # from the workspace root
 bun run --filter browsemode-evals evals -- list                                # YAML tasks on disk
 bun run --filter browsemode-evals evals -- benchmarks                          # external benchmarks
-bun run --filter browsemode-evals evals -- run                                 # all YAML on obscura
+bun run --filter browsemode-evals evals -- run                                 # all YAML on chrome
 bun run --filter browsemode-evals evals -- run --backend both                  # obscura + chrome
 bun run --filter browsemode-evals evals -- run hn                              # filter YAML by name/tag
 bun run --filter browsemode-evals evals -- run --benchmark webvoyager -l 10    # 10 WebVoyager tasks
@@ -93,7 +93,8 @@ The LLM judge follows the same pattern under id `pi`. It spawns pi loaded with *
 | `PI_BROWSEMODE_EXT_PATH` | (auto) | Override the runner's extension dir (default: `packages/pi-browsemode/.pi/extensions/browsemode`) |
 | `PI_JUDGE_EXT_PATH` | (auto) | Override the judge's extension dir (default: `packages/evals/extensions/judge`) |
 | `PI_JUDGE_THINKING` | `off` | Thinking level just for the judge subprocess |
-| `PI_BROWSE_OBSCURA_PORT` | `9333` | Where the runner's extension expects obscura |
+| `PI_BROWSE_BACKEND` | `chrome` | Browser backend for pi-browsemode: `chrome` or `obscura` |
+| `PI_BROWSE_OBSCURA_PORT` | `9333` | Where the runner's extension expects obscura when `PI_BROWSE_BACKEND=obscura` |
 | `BROWSEMODE_EVALS_PI_LOG` | (unset) | If set, dump pi's full event stream as JSONL per task for replay |
 
 ## External benchmarks
@@ -114,7 +115,7 @@ Both benchmarks have open-ended success criteria, so the substring judge under-g
 | `chrome`  | `Browsemode.launch()` spawns the managed Chrome via the standard finder (Chrome / Chromium / Brave / Edge / Arc). |
 | `both`    | Each task runs once per backend. Tasks with `only: [chrome]` skip obscura, and vice-versa. |
 
-The `Report` JSON breaks down pass/fail per backend. That number is the actual project signal: how much of the suite obscura covers today, vs how much still needs Chrome fallback.
+The `Report` JSON breaks down pass/fail per backend. Chrome is the production/default signal; obscura coverage is tracked separately as the lightweight/static subset.
 
 ## Status
 
