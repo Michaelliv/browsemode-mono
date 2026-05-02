@@ -11,7 +11,7 @@ await browser.exec(`
 `);
 ```
 
-That code runs against a live Chrome (or Brave, Edge, Arc, Obscura, Steel, Browserbase, Browserless, Hyperbrowser, or any CDP websocket) over CDP. The agent never writes selectors. It never waits manually. It never sees pixels.
+That code runs against a live Chrome — local, remote over CDP, or hosted by Steel, Browserbase, Browserless, or Hyperbrowser. The agent writes code against named elements instead of selectors or pixels, and uses explicit browser-aware waits when the page is dynamic.
 
 ## Why
 
@@ -31,7 +31,7 @@ bun add browsemode
 ```ts
 import { Browsemode } from "browsemode";
 
-const browser = await Browsemode.connect({ id: "research", port: 9333 });
+const browser = await Browsemode.launch({ id: "research" });
 await browser.newPage({ url: "https://example.com" });
 await browser.scan();
 
@@ -94,18 +94,18 @@ await a.detach();                                // keep the live browser, save 
 const b = await Browsemode.restore("research");  // later, in another process
 ```
 
-**Local or cloud browsers, one API.** Chrome is the production path: full CDP, real layout, dialogs, downloads, screenshots, cookies, and watchdogs. Obscura remains a tiny local backend for lightweight/static flows. The pi extension can also route to hosted browser providers — Steel, Browserbase, Browserless, Hyperbrowser — or any raw CDP websocket. Same `Browser` class either way, calling code never branches.
+**Local or cloud browsers, one API.** Chrome is the production path: full CDP, real layout, dialogs, downloads, screenshots, cookies, and watchdogs. You can run it locally, connect to any remote CDP websocket, or — through the pi extension — route the same browser surface to hosted providers like Steel, Browserbase, Browserless, and Hyperbrowser. Same `Browser` class either way, calling code never branches.
 
-|  | Chrome / local CDP | Obscura | Steel / Browserbase / Browserless / Hyperbrowser |
-|---|---|---|---|
-| Where it runs | local machine / your infra | local tiny runtime | hosted browser session |
-| Connection | CDP host/port or websocket | CDP host/port | CDP websocket returned by provider |
-| Navigate, scan, fill, type, eval, markdown | yes | yes | yes |
-| Tabs | yes | yes | yes |
-| Layout-aware click, dialogs, downloads | yes | partial / shimmed | provider Chromium path |
-| Lifecycle | snapshots + detach/restore | snapshots + fallback | provider session close/release/stop |
+|  | Local Chrome / CDP | Hosted providers |
+|---|---|---|
+| Where it runs | local machine or your infra | Steel / Browserbase / Browserless / Hyperbrowser |
+| Connection | CDP host/port or websocket | CDP websocket returned by provider |
+| Navigate, scan, fill, type, eval, markdown | yes | yes |
+| Tabs | yes | yes |
+| Layout-aware click, dialogs, downloads | yes | provider Chromium path |
+| Lifecycle | snapshots + detach/restore | provider session close/release/stop |
 
-Obscura still matters because it makes the easy path tiny. Hosted providers matter when you want remote execution, stealth/proxies, live viewers, recordings, or managed browser fleets.
+Hosted providers matter when you want remote execution, stealth/proxies, live viewers, recordings, or managed browser fleets. Obscura support still exists as an experimental lightweight local runtime, but the README and default path are Chrome-first.
 
 **Vision via markdown, not screenshots.** Pages render through [markit](https://github.com/Michaelliv/markit) when the agent needs to read content. Deterministic, cheap, no image tokens.
 
@@ -150,7 +150,7 @@ ENV BROWSEMODE_DEFAULT_BROWSER_ID=container-1
 | Element addressing | named (`page.signInButton`) | numeric index (`click 0`) | natural language (`act("click sign in")`) | accessibility refs (`ref=e3`) |
 | Reasoning per task | one script | many tool calls | many primitives | many tool calls |
 | Driver | direct CDP | direct CDP | Playwright | Playwright |
-| Default browser | Chrome-first; Obscura optional; cloud via pi provider router | Chromium (200+ MB RAM) | Chromium / cloud | Chromium (200+ MB RAM) |
+| Default browser | Chrome-first; cloud via pi provider router; Obscura experimental | Chromium (200+ MB RAM) | Chromium / cloud | Chromium (200+ MB RAM) |
 | Docker image cost | local Chrome unless using remote CDP/cloud | full Chromium install | full Chromium install or Browserbase | full Chromium install |
 | Cold start | local Chrome ~2s; remote depends on provider | ~2 s | ~2 s / provider-dependent | ~2 s |
 | Fallback browser | Chrome, Brave, Edge, Arc (transparent) | Chromium | Chromium / cloud | Chromium / Firefox / WebKit |
@@ -175,7 +175,7 @@ packages/pi-browsemode/ pi extension: one tool, provider router, in-sandbox disc
 
 `pi-browsemode` is a [pi](https://pi.dev) extension. It registers a single tool, `execute_browsemode`, that runs JavaScript in browsemode's sandbox against a real browser. The browser persists across tool calls; element discovery (`api.list()`, `api.describe(path)`, `page.list()`, `page.find(query)`, `page.describe(name)`) lives inside the sandbox, so the agent's system prompt stays small. Lives at `packages/pi-browsemode/.pi/extensions/browsemode/index.ts`.
 
-The pi package follows the same router pattern as `pi-websearch`: one stable agent-facing schema, provider complexity behind environment variables. By default it launches managed Chrome. Set `STEEL_API_KEY`, `BROWSERBASE_API_KEY`, `BROWSERLESS_API_TOKEN`, `HYPERBROWSER_API_KEY`, or `PI_BROWSE_CDP_WS_URL` to route the same tool to a hosted/remote browser. Force a backend with `PI_BROWSE_PROVIDER=chrome|obscura|remote-cdp|steel|browserbase|browserless|hyperbrowser`.
+The pi package follows the same router pattern as `pi-websearch`: one stable agent-facing schema, provider complexity behind environment variables. By default it launches managed Chrome. Set `STEEL_API_KEY`, `BROWSERBASE_API_KEY`, `BROWSERLESS_API_TOKEN`, `HYPERBROWSER_API_KEY`, or `PI_BROWSE_CDP_WS_URL` to route the same tool to a hosted/remote browser. Force a provider with `PI_BROWSE_PROVIDER=chrome|remote-cdp|steel|browserbase|browserless|hyperbrowser`. `obscura` remains available as an experimental provider for local lightweight testing.
 
 ![pi-browsemode schema](packages/pi-browsemode/schemas.png)
 
@@ -195,11 +195,8 @@ For agents working in this repo, see [AGENTS.md](AGENTS.md) for architecture, co
 
 ## Status
 
-Early, on both sides. The SDK is stable enough to drive real flows; the CLI is shipping; the watchdog scaffold (popups, downloads) is in place. Anti-bot defenses (Cloudflare TLS fingerprinting, canvas-based UIs) are known gaps.
+The SDK and CLI are stable enough to drive real flows; the watchdog scaffold (popups, downloads) is in place; the pi provider router has been smoke-tested against Steel, Browserbase, Browserless, and Hyperbrowser. Anti-bot defenses such as Cloudflare TLS fingerprinting and canvas-heavy UIs are known gaps unless you run through a provider that handles them.
 
-Obscura is at v0.1.x and rapidly filling CDP gaps. browsemode pins no specific obscura version but is tested against the current release. We catch obscura's missing surfaces (`elementFromPoint`, `Page.getLayoutMetrics`, real `Fetch` interception, dialog events, downloads) at runtime and fall back to Chrome where needed. As obscura merges its open PRs, more flows shift to the obscura path with no code change here.
-
-If you're choosing a stack today: use browsemode if you want a single low-token code surface that can run locally, against raw CDP, or against hosted browser providers without changing the agent workflow. Use Stagehand or browser-use directly if you want a higher-level autonomous browser framework instead of a deterministic code sandbox.
 
 ## License
 
